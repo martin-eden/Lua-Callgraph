@@ -53,7 +53,8 @@ local process_function =
       local opcode_less = 'LT'
       local opcode_less_eq = 'LE'
       local opcode_jump = 'JMP'
-      local opcode_equal = 'EQI'
+      local opcode_equal_reg = 'EQ'
+      local opcode_equal_const = 'EQI'
       local opcode_forloop = 'TFORLOOP'
 
       local num_instructions = #Function
@@ -71,7 +72,8 @@ local process_function =
           (opcode == opcode_test) or
           (opcode == opcode_less) or
           (opcode == opcode_less_eq) or
-          (opcode == opcode_equal)
+          (opcode == opcode_equal_reg) or
+          (opcode == opcode_equal_const)
         then
           add_to_list(NextOnes, next_instruction_index)
           add_to_list(NextOnes, next_instruction_index + 1)
@@ -101,7 +103,7 @@ local export_to_dot
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
 
-  local serialize_callgraph_tgf = request('serialize_callgraph_tgf')
+  local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
 
   export_to_tgf =
     function(InstructionsGraph, file_name)
@@ -109,12 +111,12 @@ do
 
       OutputStream:Open(file_name)
 
-      serialize_callgraph_tgf(InstructionsGraph, OutputStream)
+      callgraph_to_tgf(InstructionsGraph, OutputStream)
 
       OutputStream:Close()
     end
 
-  local serialize_callgraph_dot = request('serialize_callgraph_dot')
+  local callgraph_to_dot = request('callgraph.callgraph_to_dot')
 
   export_to_dot =
     function(InstructionsGraph, file_name)
@@ -122,7 +124,7 @@ do
 
       OutputStream:Open(file_name)
 
-      serialize_callgraph_dot(InstructionsGraph, OutputStream)
+      callgraph_to_dot(InstructionsGraph, OutputStream)
 
       OutputStream:Close()
     end
