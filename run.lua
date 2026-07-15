@@ -95,63 +95,83 @@ local process_function =
     return Result
   end
 
+local export_to_tgf
+local export_to_dot
+
+do
+  local OutputFileStream = request('!.concepts.StreamIo.Output.File')
+
+  local serialize_callgraph_tgf = request('serialize_callgraph_tgf')
+
+  export_to_tgf =
+    function(InstructionsGraph, file_name)
+      local OutputStream = new(OutputFileStream)
+
+      OutputStream:Open(file_name)
+
+      serialize_callgraph_tgf(InstructionsGraph, OutputStream)
+
+      OutputStream:Close()
+    end
+
+  local serialize_callgraph_dot = request('serialize_callgraph_dot')
+
+  export_to_dot =
+    function(InstructionsGraph, file_name)
+      local OutputStream = new(OutputFileStream)
+
+      OutputStream:Open(file_name)
+
+      serialize_callgraph_dot(InstructionsGraph, OutputStream)
+
+      OutputStream:Close()
+    end
+end
+
+local Config =
+  {
+    source_code_file_name = arg[1],
+  }
+
 -- Main:
 do
   local t2s = request('!.convert.value_to_str')
 
-  local func
+  local source_code_str
   do
-    -- func = request('!.concepts.lua_bytecode_decompiler.parse.parse_listing')
-    -- [[
-    func = request('!.concepts.RangesTree.RangesTree.Freetown.get_real_ranges')
+    local file_to_str = request('!.convert.file_to_str')
 
-    local _
-    _, func = debug.getupvalue(func, 3)
-    _, func = debug.getupvalue(func, 2)
-    --]]
+    local source_code_file_name = Config.source_code_file_name
+
+    source_code_str = file_to_str(source_code_file_name)
   end
 
-  local Functions = get_functions(func)
+  local get_bytecode =
+    request('!.concepts.lua_bytecode_decompiler.bytecode_from_source')
+  local get_listing =
+    request('!.concepts.lua_bytecode_decompiler.listing_from_bytecode')
+
+  local bytecode = get_bytecode(source_code_str)
+
+  local Functions = get_listing(bytecode)
 
   -- print(t2s(Functions))
 
-  local InstructionsGraph = process_function(Functions[1])
+  local tgf_name_format = 'output/callgraph_%d.tgf'
+  local dot_name_format = 'output/callgraph_%d.dot'
 
+  local str_format = string.format
 
-  -- print(t2s(InstructionsGraph))
+  for function_index, Function in ipairs(Functions) do
+    local InstructionsGraph = process_function(Functions[function_index])
 
-  do
-    local serialize_callgraph_tgf = request('serialize_callgraph_tgf')
+    -- print(t2s(InstructionsGraph))
 
-    local OutputStream
-    do
-      local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-      local file_name = 'callgraph.tgf'
+    local tgf_file_name = str_format(tgf_name_format, function_index)
+    export_to_tgf(InstructionsGraph, tgf_file_name)
 
-      OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-    end
-
-    serialize_callgraph_tgf(InstructionsGraph, OutputStream)
-
-    OutputStream:Close()
-  end
-
-  do
-    local serialize_callgraph_dot = request('serialize_callgraph_dot')
-
-    local OutputStream
-    do
-      local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-      local file_name = 'callgraph.dot'
-
-      OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-    end
-
-    serialize_callgraph_dot(InstructionsGraph, OutputStream)
-
-    OutputStream:Close()
+    local dot_file_name = str_format(dot_name_format, function_index)
+    export_to_dot(InstructionsGraph, dot_file_name)
   end
 end
 
