@@ -5,7 +5,7 @@
   Last mod.: 2026-07-15
 ]]
 
-package.path = package.path .. ';../../?.lua'
+-- package.path = package.path .. ';../../?.lua'
 require('workshop.base')
 
 local process_function
