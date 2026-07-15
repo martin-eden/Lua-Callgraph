@@ -1,4 +1,4 @@
--- Return table with possible next instructions indices
+-- Return table with possible next instructions indices. Lua 5.5
 
 --[[
   Author: Martin Eden
@@ -45,7 +45,7 @@ local Terminators =
     FlowOpcodes.return_sequence,
   }
 
-local Directors =
+local Jumpers =
   {
     FlowOpcodes.jump,
   }
@@ -68,8 +68,12 @@ local Skippers =
 
 local ForwardJumpers =
   {
-    FlowOpcodes.check_numeric_loop,
     FlowOpcodes.check_generic_loop,
+  }
+
+local ForwardJumpersAndSkippers =
+  {
+    FlowOpcodes.check_numeric_loop,
   }
 
 local BackwardJumpers =
@@ -81,17 +85,19 @@ local BackwardJumpers =
 local get_next_ones
 do
   local Terminators_Map
-  local Directors_Map
+  local Jumpers_Map
   local Skippers_Map
   local ForwardJumpers_Map
+  local ForwardJumpersAndSkippers_Map
   local BackwardJumpers_Map
   do
     local map_values = request('!.table.map_values')
 
     Terminators_Map = map_values(Terminators)
-    Directors_Map = map_values(Directors)
+    Jumpers_Map = map_values(Jumpers)
     Skippers_Map = map_values(Skippers)
     ForwardJumpers_Map = map_values(ForwardJumpers)
+    ForwardJumpersAndSkippers_Map = map_values(ForwardJumpersAndSkippers)
     BackwardJumpers_Map = map_values(BackwardJumpers)
   end
 
@@ -106,20 +112,21 @@ do
 
       if Terminators_Map[opcode] then
         ;
-      elseif Directors_Map[opcode] then
+      elseif Jumpers_Map[opcode] then
         local jump_offset = tonumber(Instruction[2])
-
         add_to_list(NextOnes, next_instruction_index + jump_offset)
       elseif Skippers_Map[opcode] then
         add_to_list(NextOnes, next_instruction_index)
         add_to_list(NextOnes, next_instruction_index + 1)
       elseif ForwardJumpers_Map[opcode] then
         local jump_offset = tonumber(Instruction[3])
-
+        add_to_list(NextOnes, next_instruction_index + jump_offset)
+      elseif ForwardJumpersAndSkippers_Map[opcode] then
+        local jump_offset = tonumber(Instruction[3])
+        add_to_list(NextOnes, next_instruction_index)
         add_to_list(NextOnes, next_instruction_index + jump_offset)
       elseif BackwardJumpers_Map[opcode] then
         local jump_offset = tonumber(Instruction[3])
-
         add_to_list(NextOnes, next_instruction_index)
         add_to_list(NextOnes, next_instruction_index - jump_offset)
       else
