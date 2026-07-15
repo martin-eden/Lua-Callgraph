@@ -54,9 +54,9 @@ local process_function =
       local opcode_less_eq = 'LE'
       local opcode_jump = 'JMP'
       local opcode_equal = 'EQI'
+      local opcode_forloop = 'TFORLOOP'
 
       local num_instructions = #Function
-      local AdditionalJumpOffsets = { }
 
       for instruction_index, Instruction in ipairs(Function) do
         local NextOnes = Result[instruction_index].NextOnes
@@ -65,31 +65,28 @@ local process_function =
 
         local opcode = Instruction[1]
 
+        local next_instruction_index = instruction_index +  1
+
         if
           (opcode == opcode_test) or
           (opcode == opcode_less) or
           (opcode == opcode_less_eq) or
           (opcode == opcode_equal)
         then
-          local affected_instruction_index = instruction_index + 2
-          local additional_jump_offset = tonumber(Instruction[3])
-
-          if not is_nil(AdditionalJumpOffsets[affected_instruction_index]) then
-            error('Additional jump offset is already set.')
-          end
-          AdditionalJumpOffsets[affected_instruction_index] = additional_jump_offset
-
-          add_to_list(NextOnes, instruction_index + 1)
-          add_to_list(NextOnes, instruction_index + 2)
+          add_to_list(NextOnes, next_instruction_index)
+          add_to_list(NextOnes, next_instruction_index + 1)
         elseif (opcode == opcode_jump) then
-          local additional_jump_offset =
-            AdditionalJumpOffsets[instruction_index] or 0
-          local jump_offset = tonumber(Instruction[2]) + additional_jump_offset
+          local jump_offset = tonumber(Instruction[2])
 
-          add_to_list(NextOnes, instruction_index + jump_offset)
+          add_to_list(NextOnes, next_instruction_index + jump_offset)
+        elseif (opcode == opcode_forloop) then
+          local jump_offset = tonumber(Instruction[3])
+
+          add_to_list(NextOnes, next_instruction_index)
+          add_to_list(NextOnes, next_instruction_index - jump_offset)
         else
           if not is_last_one then
-            add_to_list(NextOnes, instruction_index + 1)
+            add_to_list(NextOnes, next_instruction_index)
           end
         end
       end
@@ -105,16 +102,14 @@ do
   local func
   do
     -- func = request('!.concepts.lua_bytecode_decompiler.parse.parse_listing')
+    -- [[
     func = request('!.concepts.RangesTree.RangesTree.Freetown.get_real_ranges')
 
     local _
     _, func = debug.getupvalue(func, 3)
-
     _, func = debug.getupvalue(func, 2)
-
-    -- print(t2s(func))
+    --]]
   end
-
 
   local Functions = get_functions(func)
 
