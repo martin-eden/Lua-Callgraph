@@ -135,15 +135,34 @@ local Config =
     source_code_file_name = arg[1],
   }
 
+local print_help =
+  function()
+    print(
+      '\n' ..
+      'Creates call graphs for Lua code.' .. '\n' ..
+      '\n' ..
+      'Usage: <lua_file_name>' .. '\n' ..
+      '\n' ..
+      'Writes results to ./output/ .' .. '\n' ..
+      '\n' ..
+      '-- Martin, 2026-07' .. '\n'
+    )
+  end
+
 -- Main:
 do
-  local t2s = request('!.convert.value_to_str')
+  -- local t2s = request('!.convert.value_to_str')
 
   local source_code_str
   do
     local file_to_str = request('!.convert.file_to_str')
 
     local source_code_file_name = Config.source_code_file_name
+
+    if not source_code_file_name then
+      print_help()
+      return
+    end
 
     source_code_str = file_to_str(source_code_file_name)
   end
