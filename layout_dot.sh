@@ -15,7 +15,7 @@ for pathname in "$dir"/*.dot; do
 
   svg_file_name="${dot_file_name%.*}".svg
 
-  dot -Tsvg $dir/$dot_file_name -o $dir/$svg_file_name
+  dot -Tsvg "$dir/$dot_file_name" -o "$dir/$svg_file_name"
 done
 
 # 2026-07-15
