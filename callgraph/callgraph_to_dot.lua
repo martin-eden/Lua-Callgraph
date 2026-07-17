@@ -35,12 +35,12 @@ do
 end
 
 local quote = '"'
+local semicol = ';'
 local indent = '  '
 
 local write_label
 do
   local equal = '='
-  local semicol = ';'
 
   local opening_bracket = '['
   local closing_bracket = ']'
@@ -78,6 +78,7 @@ do
       OutputStream:Write(arrow)
       OutputStream:Write(space)
       OutputStream:Write(dest_name)
+      OutputStream:Write(semicol)
 
       OutputStream:Write(newline)
     end
