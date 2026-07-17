@@ -1,0 +1,42 @@
+digraph Callgraph_1
+{
+  "01" [label="VARARGPREP 0"];
+  "02" [label="GETTABUP 0 0 0"];
+  "03" [label="LOADK 1 1"];
+  "04" [label="CALL 0 2 2"];
+  "05" [label="GETTABUP 1 0 0"];
+  "06" [label="LOADK 2 2"];
+  "07" [label="CALL 1 2 2"];
+  "08" [label="GETTABUP 2 0 0"];
+  "09" [label="LOADK 3 3"];
+  "10" [label="CALL 2 2 2"];
+  "11" [label="GETTABUP 3 0 0"];
+  "12" [label="LOADK 4 4"];
+  "13" [label="CALL 3 2 2"];
+  "14" [label="CLOSURE 4 0"];
+  "15" [label="LOADNIL 5 0"];
+  "16" [label="CLOSURE 6 1"];
+  "17" [label="MOVE 5 6"];
+  "18" [label="CLOSURE 6 2"];
+  "19" [label="RETURN 6 2 1k"];
+  "20" [label="RETURN 7 1 1k"];
+
+  "01" -> "02";
+  "02" -> "03";
+  "03" -> "04";
+  "04" -> "05";
+  "05" -> "06";
+  "06" -> "07";
+  "07" -> "08";
+  "08" -> "09";
+  "09" -> "10";
+  "10" -> "11";
+  "11" -> "12";
+  "12" -> "13";
+  "13" -> "14";
+  "14" -> "15";
+  "15" -> "16";
+  "16" -> "17";
+  "17" -> "18";
+  "18" -> "19";
+}
