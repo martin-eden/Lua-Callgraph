@@ -7,8 +7,13 @@
 
 local OutputStream
 
-local space = ' '
+local write =
+  function(str)
+    OutputStream:Write(str)
+  end
+
 local newline = '\010'
+local space = ' '
 
 local start_graph
 local end_graph
@@ -18,19 +23,19 @@ do
 
   start_graph =
     function(graph_name)
-      OutputStream:Write('digraph')
-      OutputStream:Write(space)
-      OutputStream:Write(graph_name)
-      OutputStream:Write(newline)
+      write('digraph')
+      write(space)
+      write(graph_name)
+      write(newline)
 
-      OutputStream:Write(opening_brace)
-      OutputStream:Write(newline)
+      write(opening_brace)
+      write(newline)
     end
 
   end_graph =
     function()
-      OutputStream:Write(closing_brace)
-      OutputStream:Write(newline)
+      write(closing_brace)
+      write(newline)
     end
 end
 
@@ -47,21 +52,21 @@ do
 
   write_label =
     function(name, label)
-      OutputStream:Write(indent)
+      write(indent)
 
-      OutputStream:Write(name)
-      OutputStream:Write(space)
+      write(name)
+      write(space)
 
-      OutputStream:Write(opening_bracket)
-      OutputStream:Write('label')
-      OutputStream:Write(equal)
-      OutputStream:Write(quote)
-      OutputStream:Write(label)
-      OutputStream:Write(quote)
-      OutputStream:Write(closing_bracket)
-      OutputStream:Write(semicol)
+      write(opening_bracket)
+      write('label')
+      write(equal)
+      write(quote)
+      write(label)
+      write(quote)
+      write(closing_bracket)
 
-      OutputStream:Write(newline)
+      write(semicol)
+      write(newline)
     end
 end
 
@@ -71,16 +76,16 @@ do
 
   write_link =
     function(src_name, dest_name)
-      OutputStream:Write(indent)
+      write(indent)
 
-      OutputStream:Write(src_name)
-      OutputStream:Write(space)
-      OutputStream:Write(arrow)
-      OutputStream:Write(space)
-      OutputStream:Write(dest_name)
-      OutputStream:Write(semicol)
+      write(src_name)
+      write(space)
+      write(arrow)
+      write(space)
+      write(dest_name)
 
-      OutputStream:Write(newline)
+      write(semicol)
+      write(newline)
     end
 end
 
@@ -94,7 +99,6 @@ do
   set_node_name_format =
     function(num_instructions)
       local num_digits = int_to_str(get_num_digits(num_instructions))
-
       node_name_format =
         quote .. '%' .. '0' .. num_digits .. 'd' .. quote
     end
@@ -114,8 +118,10 @@ local callgraph_to_dot =
   function(InstructionsGraph, graph_name, Arg_OutputStream)
     OutputStream = Arg_OutputStream
 
-    local num_instructions = #InstructionsGraph
-    set_node_name_format(num_instructions)
+    do
+      local num_instructions = #InstructionsGraph
+      set_node_name_format(num_instructions)
+    end
 
     start_graph(graph_name)
 
@@ -124,14 +130,21 @@ local callgraph_to_dot =
       write_label(name, Instruction.label)
     end
 
-    OutputStream:Write(newline)
+    write(newline)
 
     for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
-      for _, dest_instruction_index in ipairs(Instruction.NextOnes) do
+      local NextOnes = Instruction.NextOnes
+      local num_next_ones = #NextOnes
+
+      if (num_next_ones > 1) then write(newline) end
+
+      for _, dest_instruction_index in ipairs(NextOnes) do
         local src_name = get_node_name(src_instruction_index)
         local dest_name = get_node_name(dest_instruction_index)
         write_link(src_name, dest_name)
       end
+
+      if (num_next_ones > 1) then write(newline) end
     end
 
     end_graph()
