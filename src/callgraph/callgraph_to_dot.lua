@@ -37,7 +37,9 @@ do
       write(kw_digraph)
       write(space)
 
+      write(quote)
       write(graph_name)
+      write(quote)
       write(newline)
 
       write(opening_brace)
