@@ -1,4 +1,4 @@
-digraph test.lua_3
+digraph "test.lua_3"
 {
   "01" [ label = "LEN 2 1" ];
   "02" [ label = "GETTABLE 2 1 2" ];
