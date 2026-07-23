@@ -1,4 +1,4 @@
-digraph "test.lua_2"
+strict digraph "test.lua_2"
 {
   "01" [ label = "NEWTABLE 3 0 0" ];
   "02" [ label = "EXTRAARG 0" ];

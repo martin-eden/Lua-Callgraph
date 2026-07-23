@@ -1,4 +1,4 @@
-digraph "test.lua_1"
+strict digraph "test.lua_1"
 {
   "01" [ label = "VARARGPREP 0" ];
   "02" [ label = "GETTABUP 0 0 0" ];
