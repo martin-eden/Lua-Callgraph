@@ -1,6 +1,6 @@
 _G.package.preload['run'] =
   function(...)
-    package.path = package.path .. ';../../?.lua'
+    package.path = package.path .. ';../../../?.lua'
     require('workshop.base')
     local get_chunks
     do
@@ -14,10 +14,10 @@ _G.package.preload['run'] =
           '!.concepts.lua_bytecode_decompiler.listing_from_bytecode'
         )
       get_chunks =
-        function(source_code_file_name)
+        function(source_code_path_name)
           return
             get_listing(
-              get_bytecode(file_to_str(source_code_file_name))
+              get_bytecode(file_to_str(source_code_path_name))
             )
         end
     end
@@ -77,34 +77,50 @@ Usage: <lua_file_name> <output_dir>
 -- Martin, 2026-07
 ]]
     local Config =
-      {
-        source_code_file_name = arg[1],
-        output_dir_name = arg[2],
-        do_export_to_tgf = true,
-        do_export_to_dot = true,
-      }
+      { source_code_path_name = arg[1], output_dir_name = arg[2] }
     do
-      local source_code_file_name = Config.source_code_file_name
+      local source_code_path_name = Config.source_code_path_name
       local output_dir_name = Config.output_dir_name
-      local do_export_to_tgf = Config.do_export_to_tgf
-      local do_export_to_dot = Config.do_export_to_dot
-      if not (source_code_file_name and output_dir_name) then
+      if not (source_code_path_name and output_dir_name) then
         io.stdout:write(usage_text)
         return
       end
-      local tgf_name_format = 'output/callgraph_%d.tgf'
-      local dot_name_format = 'output/callgraph_%d.dot'
+      local NamesGiver = request('NamesGiver.Interface')
+      NamesGiver = NamesGiver.create()
+      NamesGiver:SetSourceName(source_code_path_name)
+      NamesGiver:SetBaseDir(output_dir_name)
+      local get_padded_number_format =
+        request('NamesGiver.get_padded_number_format')
+      local str_tgf = 'tgf'
+      local str_dot = 'dot'
+      do
+        local remove_dir = request('!.file_system.directory.remove')
+        local create_dir = request('!.file_system.directory.create')
+        local tgf_dir = NamesGiver:GetTgfDir()
+        remove_dir(tgf_dir)
+        create_dir(tgf_dir)
+        local dot_dir = NamesGiver:GetDotDir()
+        remove_dir(dot_dir)
+        create_dir(dot_dir)
+      end
+      local Chunks = get_chunks(source_code_path_name)
+      NamesGiver:SetNumItems(#Chunks)
+      local tgf_file_name_format = NamesGiver:GetTgfPathnameFormat()
+      local dot_graph_name_format = NamesGiver:GetDotGraphnameFormat()
+      local dot_file_name_format = NamesGiver:GetDotPathnameFormat()
       local str_format = string.format
-      local Chunks = get_chunks(source_code_file_name)
       for chunk_index, Chunk in ipairs(Chunks) do
         local Callgraph = get_callgraph(Chunk)
-        if do_export_to_tgf then
-          local file_name = str_format(tgf_name_format, chunk_index)
+        do
+          local file_name =
+            str_format(tgf_file_name_format, chunk_index)
           export_to_tgf(Callgraph, file_name)
         end
-        if do_export_to_dot then
-          local graph_name = 'Callgraph_' .. chunk_index
-          local file_name = str_format(dot_name_format, chunk_index)
+        do
+          local graph_name =
+            str_format(dot_graph_name_format, chunk_index)
+          local file_name =
+            str_format(dot_file_name_format, chunk_index)
           export_to_dot(Callgraph, graph_name, file_name)
         end
       end
@@ -347,6 +363,28 @@ _G.package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
         return glue_words(Command)
       end
   end
+_G.package.preload['workshop.mechs.cmdline.get_cmd_mkdir'] =
+  function(...)
+    local normalize = request('!.concepts.path_name.normalize')
+    local quote = request('!.concepts.shell.quote')
+    local glue_words = request('!.concepts.words.to_string')
+    return
+      function(dir_name)
+        local Command = { 'mkdir', '-p', quote(normalize(dir_name)) }
+        return glue_words(Command)
+      end
+  end
+_G.package.preload['workshop.mechs.cmdline.get_cmd_rmdir'] =
+  function(...)
+    local normalize = request('!.concepts.path_name.normalize')
+    local quote = request('!.concepts.shell.quote')
+    local glue_words = request('!.concepts.words.to_string')
+    return
+      function(dir_name)
+        local Command = { 'rm', '-r', '-f', quote(normalize(dir_name)) }
+        return glue_words(Command)
+      end
+  end
 _G.package.preload['workshop.number.is_natural'] =
   function(...)
     return
@@ -442,6 +480,21 @@ _G.package.preload['workshop.table.map_values'] =
       end
     return map_values
   end
+_G.package.preload['workshop.table.create_instance'] =
+  function(...)
+    local clone = request('clone')
+    local attach_methods = request('attach_methods')
+    local create_instance =
+      function(Data, Methods)
+        assert_table(Data)
+        assert_table(Methods)
+        local Result
+        Result = clone(Data)
+        attach_methods(Result, Methods)
+        return Result
+      end
+    return create_instance
+  end
 _G.package.preload['workshop.table.apply_table'] =
   function(...)
     local keep_str = 'keep'
@@ -512,6 +565,82 @@ _G.package.preload['workshop.table.apply_table'] =
         apply_table(A, B, Rules)
       end
     return apply_table_root
+  end
+_G.package.preload['workshop.table.attach_methods'] =
+  function(...)
+    local attach_methods =
+      function(Object, Methods)
+        assert_table(Object)
+        assert_table(Methods)
+        local Metatable =
+          {
+            __index = Methods,
+            __newindex =
+              function()
+                error('Table is locked for additions.')
+              end,
+          }
+        setmetatable(Object, Metatable)
+      end
+    return attach_methods
+  end
+_G.package.preload['workshop.file_system.directory.create'] =
+  function(...)
+    local directory_exists = request('exists')
+    local get_mkdir_command = request('!.mechs.cmdline.get_cmd_mkdir')
+    local shell_execute = request('!.concepts.shell.execute')
+    local create_dir =
+      function(dir_name)
+        assert_string(dir_name)
+        if directory_exists(dir_name) then
+          return true
+        end
+        local mkdir_cmd = get_mkdir_command(dir_name)
+        shell_execute(mkdir_cmd)
+        if directory_exists(dir_name) then
+          return true
+        end
+        return false
+      end
+    return create_dir
+  end
+_G.package.preload['workshop.file_system.directory.exists'] =
+  function(...)
+    local normalize_name = request('!.concepts.path_name.normalize')
+    local is_directory =
+      function(dir_name)
+        assert_string(dir_name)
+        dir_name = normalize_name(dir_name)
+        local file = io.open(dir_name, 'rb')
+        if is_nil(file) then
+          return false
+        end
+        local _, err_str, err_num = file:read(1)
+        local is_dir = (err_num == 21) and (err_str == 'Is a directory')
+        file:close()
+        return is_dir
+      end
+    return is_directory
+  end
+_G.package.preload['workshop.file_system.directory.remove'] =
+  function(...)
+    local directory_exists = request('exists')
+    local get_rmdir_command = request('!.mechs.cmdline.get_cmd_rmdir')
+    local shell_execute = request('!.concepts.shell.execute')
+    local delete_dir =
+      function(dir_name)
+        assert_string(dir_name)
+        if not directory_exists(dir_name) then
+          return true
+        end
+        local rmdir_cmd = get_rmdir_command(dir_name)
+        shell_execute(rmdir_cmd)
+        if not directory_exists(dir_name) then
+          return true
+        end
+        return false
+      end
+    return delete_dir
   end
 _G.package.preload['workshop.file_system.file.open'] =
   function(...)
@@ -1087,6 +1216,13 @@ _G.package.preload['workshop.concepts.StreamIo.Input.String'] =
     local is_natural = request('!.number.is_natural')
     local Interface =
       {
+        Init =
+          function(Me, arg_data_str)
+            assert_string(arg_data_str)
+            Me.data_str = arg_data_str
+            Me.data_len = string.len(Me.data_str)
+            Me.read_pos = 1
+          end,
         Read =
           function(Me, num_bytes)
             assert(is_natural(num_bytes))
@@ -1095,13 +1231,6 @@ _G.package.preload['workshop.concepts.StreamIo.Input.String'] =
               math.min(start_pos + num_bytes - 1, Me.data_len)
             Me.read_pos = end_pos + 1
             return string.sub(Me.data_str, start_pos, end_pos)
-          end,
-        Init =
-          function(Me, arg_data_str)
-            assert_string(arg_data_str)
-            Me.data_str = arg_data_str
-            Me.data_len = string.len(Me.data_str)
-            Me.read_pos = 1
           end,
         data_str = '',
         data_len = 0,
@@ -1146,24 +1275,19 @@ _G.package.preload['workshop.concepts.StreamIo.Output.File'] =
     local close_file = request('!.file_system.file.close')
     local Interface =
       {
+        Open =
+          function(Me, pathname)
+            Me.File = open_file_for_writing(pathname)
+          end,
+        Close =
+          function(Me)
+            close_file(Me.File)
+          end,
         Write =
           function(Me, data_str)
             assert_string(data_str)
             assert(data_str ~= '')
             Me.File:write(data_str)
-          end,
-        Open =
-          function(Me, pathname)
-            local File = open_file_for_writing(pathname)
-            if is_nil(File) then
-              return false
-            end
-            Me.File = File
-            return true
-          end,
-        Close =
-          function(Me)
-            close_file(Me.File)
           end,
         File = 0,
       }
@@ -1258,6 +1382,56 @@ _G.package.preload['workshop.concepts.path_name.normalize'] =
         return pathname_to_str(pathname_from_str(path_name))
       end
     return normalize_name
+  end
+_G.package.preload['workshop.concepts.path_name.is_directory'] =
+  function(...)
+    local empty = ''
+    local self_dir = '.'
+    local upper_dir = '..'
+    local is_directory =
+      function(Pathname)
+        assert_table(Pathname)
+        local last_node = Pathname[#Pathname]
+        return
+          (last_node == empty) or
+          (last_node == self_dir) or
+          (last_node == upper_dir)
+      end
+    return is_directory
+  end
+_G.package.preload['workshop.concepts.path_name.get_name'] =
+  function(...)
+    local is_directory = request('is_directory')
+    local empty = ''
+    local self_dir = '.'
+    local get_name =
+      function(Pathname)
+        assert_table(Pathname)
+        local leaf_name
+        if is_directory(Pathname) then
+          leaf_name = Pathname[#Pathname - 1]
+        else
+          leaf_name = Pathname[#Pathname]
+        end
+        if (leaf_name == empty) then
+          leaf_name = self_dir
+        end
+        return leaf_name
+      end
+    return get_name
+  end
+_G.package.preload['workshop.concepts.path_name.add_dir_postfix'] =
+  function(...)
+    local ends_with = request('!.string.ends_with')
+    local add_dir_postfix =
+      function(str)
+        local dir_sep = '/'
+        if ends_with(str, dir_sep) then
+          return str
+        end
+        return str .. dir_sep
+      end
+    return add_dir_postfix
   end
 _G.package.preload['callgraph.FlowOpcodes'] =
   function(...)
@@ -1593,5 +1767,122 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
         end
     end
     return callgraph_to_dot
+  end
+_G.package.preload['NamesGiver.get_padded_number_format'] =
+  function(...)
+    local get_num_digits = request('!.number.get_num_dec_digits')
+    local int_to_str = tostring
+    local get_padded_number_format =
+      function(num_items)
+        local num_digits = get_num_digits(num_items)
+        return '%0' .. int_to_str(num_digits) .. 'd'
+      end
+    return get_padded_number_format
+  end
+_G.package.preload['NamesGiver.get_file_name'] =
+  function(...)
+    local get_path_from_str =
+      request('!.concepts.path_name.pathname_from_str')
+    local get_name_from_path = request('!.concepts.path_name.get_name')
+    local get_file_name =
+      function(source_code_path_name)
+        return
+          get_name_from_path(get_path_from_str(source_code_path_name))
+      end
+    return get_file_name
+  end
+_G.package.preload['NamesGiver.get_base_dir'] =
+  function(...)
+    local add_dir_postfix =
+      request('!.concepts.path_name.add_dir_postfix')
+    local normalize_pathname = request('!.concepts.path_name.normalize')
+    local get_base_dir =
+      function(output_dir_name)
+        return normalize_pathname(add_dir_postfix(output_dir_name))
+      end
+    return get_base_dir
+  end
+_G.package.preload['NamesGiver.Interface'] =
+  function(...)
+    local create_instance = request('!.table.create_instance')
+    local get_base_dir = request('get_base_dir')
+    local get_file_name = request('get_file_name')
+    local get_padded_number_format = request('get_padded_number_format')
+    local str_tgf = 'tgf'
+    local str_dot = 'dot'
+    local slash = '/'
+    local underscore = '_'
+    local dot = '.'
+    local DefaultCore = { '', '', 0 }
+    local Methods
+    Methods =
+      {
+        create =
+          function()
+            return create_instance(DefaultCore, Methods)
+          end,
+        SetSourceName =
+          function(Me, source_file_name)
+            Me[1] = get_file_name(source_file_name)
+          end,
+        GetSourceName =
+          function(Me)
+            return Me[1]
+          end,
+        SetBaseDir =
+          function(Me, output_dir_name)
+            Me[2] = get_base_dir(output_dir_name)
+          end,
+        GetBaseDir =
+          function(Me)
+            return Me[2]
+          end,
+        SetNumItems =
+          function(Me, num_items)
+            Me[3] = num_items
+          end,
+        GetNumItems =
+          function(Me)
+            return Me[3]
+          end,
+        GetTgfDir =
+          function(Me)
+            return Me:GetBaseDir() .. str_tgf
+          end,
+        GetDotDir =
+          function(Me)
+            return Me:GetBaseDir() .. str_dot
+          end,
+        GetTgfPathnameFormat =
+          function(Me)
+            return
+              Me:GetTgfDir() ..
+              slash ..
+              Me:GetSourceName() ..
+              dot ..
+              get_padded_number_format(Me:GetNumItems()) ..
+              dot ..
+              str_tgf
+          end,
+        GetDotPathnameFormat =
+          function(Me)
+            return
+              Me:GetDotDir() ..
+              slash ..
+              Me:GetSourceName() ..
+              dot ..
+              get_padded_number_format(Me:GetNumItems()) ..
+              dot ..
+              str_dot
+          end,
+        GetDotGraphnameFormat =
+          function(Me)
+            return
+              Me:GetSourceName() ..
+              underscore ..
+              get_padded_number_format(Me:GetNumItems())
+          end,
+      }
+    return Methods
   end
 return require('run')
