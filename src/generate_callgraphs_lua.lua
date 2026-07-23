@@ -1,4 +1,4 @@
--- Create callgraph from Lua function bytecode instructions
+-- Create callgraphs from Lua function bytecode instructions
 
 --[[
   Author: Martin Eden
