@@ -33,7 +33,7 @@ local create_deploy_script = request('!.system.create_deploy_script')
 local ModulesList =
   {
     'workshop.base',
-    'run',
+    'generate_callgraphs_lua',
   }
 
 arg[1] = '../samples/test.lua'
