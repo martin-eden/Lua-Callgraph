@@ -31,7 +31,7 @@ rm -r -f "$base_dir"/*
 #
 # It creates *.dot and *.tgf files in "$base_dir/dot" and "$base_dir/tgf".
 #
-lua run.lua "$pathname" "$base_dir"
+lua generate_callgraphs_lua.lua "$pathname" "$base_dir"
 
 #
 # Layout to SVG
@@ -42,7 +42,6 @@ dot_dir="$base_dir"/dot
 svg_dir="$base_dir"/svg
 
 mkdir "$svg_dir"
-echo $svg_dir
 
 for pathname in "$dot_dir"/*; do
   dot_file_name="$(basename $pathname)"
