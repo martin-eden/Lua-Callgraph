@@ -1,4 +1,4 @@
--- Generate needed names from source file output dir names
+-- Generate needed names from source file and output dir names
 
 --[[
   Author: Martin Eden
@@ -8,51 +8,106 @@
 -- Imports:
 local create_instance = request('!.table.create_instance')
 local get_base_dir = request('get_base_dir')
-local get_source_file_name = request('get_source_file_name')
+local get_file_name = request('get_file_name')
+local get_padded_number_format = request('get_padded_number_format')
 
-local str_dot = 'dot'
 local str_tgf = 'tgf'
+local str_dot = 'dot'
+
+local slash = '/'
+local underscore = '_'
+local dot = '.'
 
 --[[
   Core storage format:
 
     1 [s] source_code_path_name
     2 [s] output_dir_name
+    3 [i] num_items
 ]]
+
+local DefaultCore =
+  { '', '', 0 }
 
 local Methods
 Methods =
   {
     create =
-      function(source_code_path_name, output_dir_name)
-        local Core = { source_code_path_name, output_dir_name }
-
-        return create_instance(Core, Methods)
+      function()
+        return create_instance(DefaultCore, Methods)
       end,
 
-    get_tgf_dir =
+    SetSourceName =
+      function(Me, source_file_name)
+        Me[1] = get_file_name(source_file_name)
+      end,
+
+    GetSourceName =
       function(Me)
-        return Me:get_base_dir() .. Me.str_tgf
+        return Me[1]
       end,
 
-    get_dot_dir =
+    SetBaseDir =
+      function(Me, output_dir_name)
+        Me[2] = get_base_dir(output_dir_name)
+      end,
+
+    GetBaseDir =
       function(Me)
-        return Me:get_base_dir() .. Me.str_dot
+        return Me[2]
       end,
 
-    get_base_dir =
+    SetNumItems =
+      function(Me, num_items)
+        Me[3] = num_items
+      end,
+
+    GetNumItems =
       function(Me)
-        return get_base_dir(Me[2])
+        return Me[3]
       end,
 
-    get_source_file_name =
+    GetTgfDir =
       function(Me)
-        return get_source_file_name(Me[1])
+        return Me:GetBaseDir() .. str_tgf
       end,
 
-    -- Internals:
-    str_tgf = str_tgf,
-    str_dot = str_dot,
+    GetDotDir =
+      function(Me)
+        return Me:GetBaseDir() .. str_dot
+      end,
+
+    GetTgfPathnameFormat =
+      function(Me)
+        return
+          Me:GetTgfDir() ..
+          slash ..
+          Me:GetSourceName() ..
+          dot ..
+          get_padded_number_format(Me:GetNumItems()) ..
+          dot ..
+          str_tgf
+      end,
+
+    GetDotPathnameFormat =
+      function(Me)
+        return
+          Me:GetDotDir() ..
+          slash ..
+          Me:GetSourceName() ..
+          dot ..
+          get_padded_number_format(Me:GetNumItems()) ..
+          dot ..
+          str_dot
+      end,
+
+    GetDotGraphnameFormat =
+      function(Me)
+        return
+          Me:GetSourceName() ..
+          underscore ..
+          get_padded_number_format(Me:GetNumItems())
+      end,
   }
 
 -- Export:

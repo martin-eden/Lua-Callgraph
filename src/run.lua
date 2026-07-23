@@ -98,8 +98,6 @@ do
     end
 end
 
-local NamesGiver = request('NamesGiver.Interface')
-
 local usage_text =
 [[
 
@@ -126,94 +124,36 @@ do
     return
   end
 
-  NamesGiver = NamesGiver.create(source_code_path_name, output_dir_name)
+  local NamesGiver = request('NamesGiver.Interface')
+  NamesGiver = NamesGiver.create()
+  NamesGiver:SetSourceName(source_code_path_name)
+  NamesGiver:SetBaseDir(output_dir_name)
+
+  local get_padded_number_format = request('NamesGiver.get_padded_number_format')
 
   local str_tgf = 'tgf'
   local str_dot = 'dot'
-
-  local base_dir = NamesGiver:get_base_dir()
 
   do
     local remove_dir = request('!.file_system.directory.remove')
     local create_dir = request('!.file_system.directory.create')
 
-    local tgf_dir = NamesGiver:get_tgf_dir()
+    local tgf_dir = NamesGiver:GetTgfDir()
     remove_dir(tgf_dir)
     create_dir(tgf_dir)
 
-    local dot_dir = NamesGiver:get_dot_dir()
+    local dot_dir = NamesGiver:GetDotDir()
     remove_dir(dot_dir)
     create_dir(dot_dir)
   end
 
-  local get_padded_number_format
-  do
-    local get_num_digits = request('!.number.get_num_dec_digits')
-    local int_to_str = tostring
-    get_padded_number_format =
-      function(num_items)
-        local num_digits = get_num_digits(num_items)
-        return '%0' .. int_to_str(num_digits) .. 'd'
-      end
-  end
-
-  local get_tgf_path_name_format
-  local get_dot_path_name_format
-  local get_dot_graph_name_format
-  do
-    local slash = '/'
-    local underscore = '_'
-    local dot = '.'
-
-    get_tgf_path_name_format =
-      function(source_file_name, output_dir_name, num_items)
-        local tgf_dir = NamesGiver:get_tgf_dir()
-        local num_format = get_padded_number_format(num_items)
-        return
-          tgf_dir ..
-          slash ..
-          source_file_name ..
-          dot ..
-          num_format ..
-          dot ..
-          str_tgf
-      end
-
-    get_dot_path_name_format =
-      function(source_file_name, output_dir_name, num_items)
-        local dot_dir = NamesGiver:get_dot_dir()
-        local num_format = get_padded_number_format(num_items)
-        return
-          dot_dir ..
-          slash ..
-          source_file_name ..
-          dot ..
-          num_format ..
-          dot ..
-          str_dot
-      end
-
-    get_dot_graph_name_format =
-      function(source_file_name, num_items)
-        local num_format = get_padded_number_format(num_items)
-        return
-          source_file_name ..
-          underscore ..
-          num_format
-      end
-  end
-
   local Chunks = get_chunks(source_code_path_name)
-  local num_chunks = #Chunks
 
-  local source_file_name = NamesGiver:get_source_file_name()
+  NamesGiver:SetNumItems(#Chunks)
 
-  local tgf_file_name_format =
-    get_tgf_path_name_format(source_file_name, output_dir_name, num_chunks)
-  local dot_file_name_format =
-    get_dot_path_name_format(source_file_name, output_dir_name, num_chunks)
-  local dot_graph_name_format =
-    get_dot_graph_name_format(source_file_name, num_chunks)
+  local tgf_file_name_format = NamesGiver:GetTgfPathnameFormat()
+  local dot_graph_name_format = NamesGiver:GetDotGraphnameFormat()
+  local dot_file_name_format = NamesGiver:GetDotPathnameFormat()
 
   local str_format = string.format
 
