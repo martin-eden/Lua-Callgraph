@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-06-01
+  Last mod.: 2026-07-23
 ]]
 
 --[[
@@ -37,12 +37,12 @@ local ModulesList =
   }
 
 arg[1] = '../samples/test.lua'
+arg[2] = '../output/'
 
 create_deploy_script(ModulesList)
 
 --[[
   202?
-  2026-01-21
-  2026-04-23
   2026-06-01
+  2026-07-23
 ]]
