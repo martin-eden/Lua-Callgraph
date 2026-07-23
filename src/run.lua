@@ -124,15 +124,16 @@ do
     return
   end
 
+  local newline = '\010'
+
+  io.stdout:write('( Generating callgraphs', newline)
+
   local NamesGiver = request('NamesGiver.Interface')
   NamesGiver = NamesGiver.create()
   NamesGiver:SetSourceName(source_code_path_name)
   NamesGiver:SetBaseDir(output_dir_name)
 
   local get_padded_number_format = request('NamesGiver.get_padded_number_format')
-
-  local str_tgf = 'tgf'
-  local str_dot = 'dot'
 
   do
     local remove_dir = request('!.file_system.directory.remove')
@@ -169,6 +170,8 @@ do
       export_to_dot(Callgraph, graph_name, file_name)
     end
   end
+
+  io.stdout:write(')', newline)
 end
 
 --[[
