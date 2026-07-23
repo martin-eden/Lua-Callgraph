@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-07-24
 ]]
 
 local callgraph_to_dot
@@ -142,20 +142,40 @@ do
       write(newline)
 
       for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
-        -- Implementation surrounds branch nodes with empty lines
-
+        local src_name = get_node_name(src_instruction_index)
         local NextOnes = Instruction.NextOnes
+
         local is_branch_node = (#NextOnes > 1)
 
-        if is_branch_node then write(newline) end
+        if is_branch_node then
+          write(newline)
+          write(indent)
 
-        for _, dest_instruction_index in ipairs(NextOnes) do
-          local src_name = get_node_name(src_instruction_index)
-          local dest_name = get_node_name(dest_instruction_index)
-          write_link(src_name, dest_name)
+          write(src_name)
+          write(space)
+
+          write(arrow)
+          write(space)
+
+          write(opening_brace)
+          write(space)
+
+          for _, dest_instruction_index in ipairs(NextOnes) do
+            local dest_name = get_node_name(dest_instruction_index)
+            write(dest_name)
+            write(space)
+          end
+
+          write(closing_brace)
+          write(semicol)
+          write(newline)
+          write(newline)
+        else
+          for _, dest_instruction_index in ipairs(NextOnes) do
+            local dest_name = get_node_name(dest_instruction_index)
+            write_link(src_name, dest_name)
+          end
         end
-
-        if is_branch_node then write(newline) end
       end
 
       end_graph()
