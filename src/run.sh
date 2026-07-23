@@ -3,9 +3,7 @@
 # For given Lua source file create .svg callgraphs in ./output/svg/
 
 # Author: Martin Eden
-# Last mod.: 2026-07-17
-
-set -e -u
+# Last mod.: 2026-07-23
 
 print_help() {
   cat <<'EOF'
@@ -16,40 +14,42 @@ Usage: lua_source_file output_dir
 EOF
 }
 
-pathname="$1"
-
-if test -z "$1"; then
+if test -z "$2"; then
   print_help
   exit 1
 fi
 
-base_dir='output'
+set -e -u
+
+pathname="$1"
+base_dir="$2"
 
 rm -r -f "$base_dir"/*
 
-# Run callgraph generator. It creates *.dot and *.tgf files in "output/"
+#
+# Create callgraphs
+#
+# It creates *.dot and *.tgf files in "$base_dir/dot" and "$base_dir/tgf".
+#
 lua run.lua "$pathname" "$base_dir"
 
-# Create file type subdirs in "output/" and toss generated files there
-# (
-tgf_dir="$base_dir"/tgf
+#
+# Layout to SVG
+#
+# Create "$base_dir/svg" and call GraphViz to convert data
+#
 dot_dir="$base_dir"/dot
 svg_dir="$base_dir"/svg
 
-mkdir "$tgf_dir"
-mkdir "$dot_dir"
 mkdir "$svg_dir"
+echo $svg_dir
 
-mv "$base_dir"/*.tgf "$tgf_dir"
-mv "$base_dir"/*.dot "$dot_dir"
-# )
-
-# Convert GraphViz data to SVG
-for pathname in "$dot_dir"/*.dot; do
-  dot_file_name="$(basename "$pathname")"
-  svg_file_name="${dot_file_name%.*}".svg
+for pathname in "$dot_dir"/*; do
+  dot_file_name="$(basename $pathname)"
+  svg_file_name="${dot_file_name%.*}.svg"
 
   dot -Tsvg "$pathname" -o "$svg_dir/$svg_file_name"
 done
 
 # 2026-07-17
+# 2026-07-23
