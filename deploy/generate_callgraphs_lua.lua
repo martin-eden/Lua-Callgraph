@@ -1,4 +1,4 @@
-_G.package.preload['run'] =
+_G.package.preload['generate_callgraphs_lua'] =
   function(...)
     package.path = package.path .. ';../../../?.lua'
     require('workshop.base')
@@ -85,14 +85,14 @@ Usage: <lua_file_name> <output_dir>
         io.stdout:write(usage_text)
         return
       end
+      local newline = '\010'
+      io.stdout:write('( Generating callgraphs', newline)
       local NamesGiver = request('NamesGiver.Interface')
       NamesGiver = NamesGiver.create()
       NamesGiver:SetSourceName(source_code_path_name)
       NamesGiver:SetBaseDir(output_dir_name)
       local get_padded_number_format =
         request('NamesGiver.get_padded_number_format')
-      local str_tgf = 'tgf'
-      local str_dot = 'dot'
       do
         local remove_dir = request('!.file_system.directory.remove')
         local create_dir = request('!.file_system.directory.create')
@@ -124,6 +124,7 @@ Usage: <lua_file_name> <output_dir>
           export_to_dot(Callgraph, graph_name, file_name)
         end
       end
+      io.stdout:write(')', newline)
     end
   end
 _G.package.preload['workshop.base'] =
@@ -1661,13 +1662,18 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
       local opening_bracket = '['
       local closing_bracket = ']'
       local arrow = '->'
+      local kw_strict = 'strict'
       local kw_digraph = 'digraph'
       local kw_label = 'label'
       local start_graph =
         function(graph_name)
+          write(kw_strict)
+          write(space)
           write(kw_digraph)
           write(space)
+          write(quote)
           write(graph_name)
+          write(quote)
           write(newline)
           write(opening_brace)
           write(newline)
@@ -1885,4 +1891,4 @@ _G.package.preload['NamesGiver.Interface'] =
       }
     return Methods
   end
-return require('run')
+return require('generate_callgraphs_lua')
