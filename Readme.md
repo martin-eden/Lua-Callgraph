@@ -1,7 +1,5 @@
 ## What
 
-Early prototype.
-
 Generates call graphs for Lua 5.5 bytecode.
 
 Graphs are stored as files inside `output/` directory.
@@ -16,13 +14,11 @@ and in `.dot` (graph format for `Graphviz` package)
 ## Usage
 
 ```
-$ lua run.lua
+$ lua generate_callgraphs_lua.lua
 
 Creates call graphs for Lua code.
 
-Usage: <lua_file_name>
-
-Writes results to ./output/ .
+Usage: <lua_file_name> <output_dir>
 
 -- Martin, 2026-07
 ```
