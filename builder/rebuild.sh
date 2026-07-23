@@ -21,8 +21,13 @@
 
 set -e -u
 
+#
+# src/
+#
+
 cd ../src
 
+# ( Get dependencies from [workshop]
 rm -r -f workshop/
 
 lua ../builder/create_deploy.lua
@@ -32,13 +37,19 @@ rm deploy.sh
 
 mv deploy/workshop/ .
 rm -r -f deploy/
+# )
+
+cp run.sh ../deploy/
+
+#
+# builder/
+#
 
 cd ../builder
 
-# Combine all Lua code
+# ( Combine all Lua code, reformat and strip comments
 ./meld ../src/ run > ../deploy/generate_callgraph_lua.melded.lua
 
-# Reformat code and strip comments
 ./reformat_lua \
   ../deploy/generate_callgraph_lua.melded.lua \
   ../deploy/generate_callgraph_lua.melded.stripped.lua \
@@ -49,10 +60,16 @@ rm ../deploy/generate_callgraph_lua.melded.lua
 mv \
   ../deploy/generate_callgraph_lua.melded.stripped.lua \
   ../deploy/generate_callgraph_lua.lua
+# )
+
+#
+# deploy/
+#
+
+cd ../deploy
 
 # Do test run
-cd ../deploy
-lua generate_callgraph_lua.lua ../samples/test.lua
+lua generate_callgraph_lua.lua ../samples/test.lua ../output
 
 # 2026 # # # #
 # 2026-07-17

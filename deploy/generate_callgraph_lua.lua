@@ -2,106 +2,109 @@ _G.package.preload['run'] =
   function(...)
     package.path = package.path .. ';../../?.lua'
     require('workshop.base')
-    local Config = { source_code_file_name = arg[1] }
+    local get_chunks
     do
-      local Chunks
-      do
-        local bytecode
-        do
-          local source_code_str
-          do
-            local source_code_file_name
-            do
-              source_code_file_name = Config.source_code_file_name
-              if not source_code_file_name then
-                local usage_text =
-                  [[
+      local file_to_str = request('!.convert.file_to_str')
+      local get_bytecode =
+        request(
+          '!.concepts.lua_bytecode_decompiler.bytecode_from_source'
+        )
+      local get_listing =
+        request(
+          '!.concepts.lua_bytecode_decompiler.listing_from_bytecode'
+        )
+      get_chunks =
+        function(source_code_file_name)
+          return
+            get_listing(
+              get_bytecode(file_to_str(source_code_file_name))
+            )
+        end
+    end
+    local get_callgraph
+    do
+      local space = ' '
+      local list_to_str = request('!.concepts.list.to_string')
+      local get_next_ones = request('callgraph.get_next_ones')
+      local add_to_list = request('!.concepts.list.add_item')
+      get_callgraph =
+        function(Chunk)
+          local Callgraph = {}
+          for instruction_index, Instruction in ipairs(Chunk) do
+            local CallgraphRec =
+              {
+                label = list_to_str(Instruction, space),
+                NextOnes = get_next_ones(instruction_index, Instruction),
+              }
+            add_to_list(Callgraph, CallgraphRec)
+          end
+          return Callgraph
+        end
+    end
+    local export_to_tgf
+    do
+      local OutputFileStream =
+        request('!.concepts.StreamIo.Output.File')
+      local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+      export_to_tgf =
+        function(Callgraph, file_name)
+          local OutputStream = new(OutputFileStream)
+          OutputStream:Open(file_name)
+          callgraph_to_tgf(Callgraph, OutputStream)
+          OutputStream:Close()
+        end
+    end
+    local export_to_dot
+    do
+      local OutputFileStream =
+        request('!.concepts.StreamIo.Output.File')
+      local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+      export_to_dot =
+        function(Callgraph, graph_name, file_name)
+          local OutputStream = new(OutputFileStream)
+          OutputStream:Open(file_name)
+          callgraph_to_dot(Callgraph, graph_name, OutputStream)
+          OutputStream:Close()
+        end
+    end
+    local usage_text =
+      [[
 
 Creates call graphs for Lua code.
 
-Usage: <lua_file_name>
-
-Writes results to ./output/ .
+Usage: <lua_file_name> <output_dir>
 
 -- Martin, 2026-07
 ]]
-                io.stdout:write(usage_text)
-                return
-              end
-            end
-            local file_to_str = request('!.convert.file_to_str')
-            source_code_str = file_to_str(source_code_file_name)
-          end
-          local get_bytecode =
-            request(
-              '!.concepts.lua_bytecode_decompiler.bytecode_from_source'
-            )
-          bytecode = get_bytecode(source_code_str)
-        end
-        local get_listing =
-          request(
-            '!.concepts.lua_bytecode_decompiler.listing_from_bytecode'
-          )
-        Chunks = get_listing(bytecode)
-      end
-      local get_callgraph
-      do
-        local get_next_ones = request('callgraph.get_next_ones')
-        local list_to_str = request('!.concepts.list.to_string')
-        local add_to_list = request('!.concepts.list.add_item')
-        get_callgraph =
-          function(Chunk)
-            local Callgraph = {}
-            for instruction_index, Instruction in ipairs(Chunk) do
-              local CallgraphRec =
-                {
-                  label = list_to_str(Instruction, ' '),
-                  NextOnes =
-                    get_next_ones(instruction_index, Instruction),
-                }
-              add_to_list(Callgraph, CallgraphRec)
-            end
-            return Callgraph
-          end
-      end
-      local export_to_tgf
-      local export_to_dot
-      do
-        local OutputFileStream =
-          request('!.concepts.StreamIo.Output.File')
-        do
-          local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-          export_to_tgf =
-            function(Callgraph, file_name)
-              local OutputStream = new(OutputFileStream)
-              OutputStream:Open(file_name)
-              callgraph_to_tgf(Callgraph, OutputStream)
-              OutputStream:Close()
-            end
-        end
-        do
-          local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-          export_to_dot =
-            function(Callgraph, graph_name, file_name)
-              local OutputStream = new(OutputFileStream)
-              OutputStream:Open(file_name)
-              callgraph_to_dot(Callgraph, graph_name, OutputStream)
-              OutputStream:Close()
-            end
-        end
+    local Config =
+      {
+        source_code_file_name = arg[1],
+        output_dir_name = arg[2],
+        do_export_to_tgf = true,
+        do_export_to_dot = true,
+      }
+    do
+      local source_code_file_name = Config.source_code_file_name
+      local output_dir_name = Config.output_dir_name
+      local do_export_to_tgf = Config.do_export_to_tgf
+      local do_export_to_dot = Config.do_export_to_dot
+      if not (source_code_file_name and output_dir_name) then
+        io.stdout:write(usage_text)
+        return
       end
       local tgf_name_format = 'output/callgraph_%d.tgf'
       local dot_name_format = 'output/callgraph_%d.dot'
       local str_format = string.format
+      local Chunks = get_chunks(source_code_file_name)
       for chunk_index, Chunk in ipairs(Chunks) do
         local Callgraph = get_callgraph(Chunk)
-        do
+        if do_export_to_tgf then
           local file_name = str_format(tgf_name_format, chunk_index)
           export_to_tgf(Callgraph, file_name)
         end
-        do
-          local file_name = str_format(dot_name_format, chunk_index)
+        if do_export_to_dot then
           local graph_name = 'Callgraph_' .. chunk_index
+          local file_name = str_format(dot_name_format, chunk_index)
           export_to_dot(Callgraph, graph_name, file_name)
         end
       end
@@ -530,9 +533,10 @@ _G.package.preload['workshop.file_system.file.open'] =
   end
 _G.package.preload['workshop.file_system.file.open_for_writing'] =
   function(...)
+    local open_file = request('open')
     local open_for_writing =
       function(pathname)
-        return (io.open(pathname, 'w+b'))
+        return open_file(pathname, 'w+b')
       end
     return open_for_writing
   end
@@ -1376,149 +1380,172 @@ _G.package.preload['callgraph.get_next_ones'] =
   end
 _G.package.preload['callgraph.callgraph_to_tgf'] =
   function(...)
-    local OutputStream
-    local write =
-      function(str)
-        OutputStream:Write(str)
-      end
-    local node_name_format
-    local set_node_name_format
+    local callgraph_to_tgf
     do
-      local get_num_digits = request('!.number.get_num_dec_digits')
-      local int_to_str = tostring
-      set_node_name_format =
-        function(num_instructions)
-          local num_digits = get_num_digits(num_instructions)
-          node_name_format = '%' .. '0' .. int_to_str(num_digits) .. 'd'
+      local OutputStream
+      local write =
+        function(str)
+          OutputStream:Write(str)
         end
-    end
-    local get_node_name
-    do
-      local str_format = string.format
-      get_node_name =
-        function(index)
-          return str_format(node_name_format, index)
-        end
-    end
-    local space = ' '
-    local newline = '\010'
-    local write_label =
-      function(name, label)
-        write(name)
-        write(space)
-        write(label)
-        write(newline)
-      end
-    local write_sections_delimiter
-    do
+      local space = ' '
+      local newline = '\010'
       local parts_delim = '#'
-      write_sections_delimiter =
+      local write_label =
+        function(name, label)
+          write(name)
+          write(space)
+          write(label)
+          write(newline)
+        end
+      local write_sections_delimiter =
         function()
           write(newline)
           write(parts_delim)
           write(newline)
           write(newline)
         end
+      local write_link =
+        function(src_name, dest_name)
+          write(src_name)
+          write(space)
+          write(dest_name)
+          write(newline)
+        end
+      local set_node_name_format
+      local get_node_name
+      do
+        local node_name_format
+        do
+          local get_num_digits = request('!.number.get_num_dec_digits')
+          local int_to_str = tostring
+          set_node_name_format =
+            function(num_instructions)
+              local num_digits = get_num_digits(num_instructions)
+              node_name_format = '%0' .. int_to_str(num_digits) .. 'd'
+            end
+        end
+        do
+          local str_format = string.format
+          get_node_name =
+            function(index)
+              return str_format(node_name_format, index)
+            end
+        end
+      end
+      callgraph_to_tgf =
+        function(InstructionsGraph, Arg_OutputStream)
+          OutputStream = Arg_OutputStream
+          do
+            local num_instructions = #InstructionsGraph
+            set_node_name_format(num_instructions)
+          end
+          for
+            instruction_index, Instruction in ipairs(InstructionsGraph)
+          do
+            local name = get_node_name(instruction_index)
+            write_label(name, Instruction.label)
+          end
+          write_sections_delimiter()
+          for
+            src_instruction_index, Instruction in
+              ipairs(InstructionsGraph)
+          do
+            local NextOnes = Instruction.NextOnes
+            local is_branch_node = (#NextOnes > 1)
+            if is_branch_node then
+              write(newline)
+            end
+            for _, dest_instruction_index in ipairs(NextOnes) do
+              local src_name = get_node_name(src_instruction_index)
+              local dest_name = get_node_name(dest_instruction_index)
+              write_link(src_name, dest_name)
+            end
+            if is_branch_node then
+              write(newline)
+            end
+          end
+        end
     end
-    local write_link =
-      function(src_name, dest_name)
-        write(src_name)
-        write(space)
-        write(dest_name)
-        write(newline)
-      end
-    local callgraph_to_tgf =
-      function(InstructionsGraph, Arg_OutputStream)
-        OutputStream = Arg_OutputStream
-        do
-          local num_instructions = #InstructionsGraph
-          set_node_name_format(num_instructions)
-        end
-        for
-          instruction_index, Instruction in ipairs(InstructionsGraph)
-        do
-          local name = get_node_name(instruction_index)
-          write_label(name, Instruction.label)
-        end
-        write_sections_delimiter()
-        for
-          src_instruction_index, Instruction in
-            ipairs(InstructionsGraph)
-        do
-          local NextOnes = Instruction.NextOnes
-          local num_next_ones = #NextOnes
-          if (num_next_ones > 1) then
-            write(newline)
-          end
-          for _, dest_instruction_index in ipairs(NextOnes) do
-            local src_name = get_node_name(src_instruction_index)
-            local dest_name = get_node_name(dest_instruction_index)
-            write_link(src_name, dest_name)
-          end
-          if (num_next_ones > 1) then
-            write(newline)
-          end
-        end
-      end
     return callgraph_to_tgf
   end
 _G.package.preload['callgraph.callgraph_to_dot'] =
   function(...)
-    local OutputStream
-    local write =
-      function(str)
-        OutputStream:Write(str)
-      end
-    local newline = '\010'
-    local space = ' '
-    local start_graph
-    local end_graph
+    local callgraph_to_dot
     do
+      local OutputStream
+      local write =
+        function(str)
+          OutputStream:Write(str)
+        end
+      local space = ' '
+      local newline = '\010'
+      local quote = '"'
+      local semicol = ';'
+      local equal = '='
       local opening_brace = '{'
       local closing_brace = '}'
-      start_graph =
+      local opening_bracket = '['
+      local closing_bracket = ']'
+      local arrow = '->'
+      local kw_digraph = 'digraph'
+      local kw_label = 'label'
+      local start_graph =
         function(graph_name)
-          write('digraph')
+          write(kw_digraph)
           write(space)
           write(graph_name)
           write(newline)
           write(opening_brace)
           write(newline)
         end
-      end_graph =
+      local end_graph =
         function()
           write(closing_brace)
           write(newline)
         end
-    end
-    local quote = '"'
-    local semicol = ';'
-    local indent = '  '
-    local write_label
-    do
-      local equal = '='
-      local opening_bracket = '['
-      local closing_bracket = ']'
-      write_label =
+      local set_node_name_format
+      local get_node_name
+      do
+        local node_name_format
+        do
+          local get_num_digits = request('!.number.get_num_dec_digits')
+          local int_to_str = tostring
+          set_node_name_format =
+            function(num_instructions)
+              local num_digits = get_num_digits(num_instructions)
+              node_name_format =
+                quote .. '%0' .. int_to_str(num_digits) .. 'd' .. quote
+            end
+        end
+        do
+          local str_format = string.format
+          get_node_name =
+            function(index)
+              return str_format(node_name_format, index)
+            end
+        end
+      end
+      local indent = '  '
+      local write_label =
         function(name, label)
           write(indent)
           write(name)
           write(space)
           write(opening_bracket)
-          write('label')
+          write(space)
+          write(kw_label)
+          write(space)
           write(equal)
+          write(space)
           write(quote)
           write(label)
           write(quote)
+          write(space)
           write(closing_bracket)
           write(semicol)
           write(newline)
         end
-    end
-    local write_link
-    do
-      local arrow = '->'
-      write_link =
+      local write_link =
         function(src_name, dest_name)
           write(indent)
           write(src_name)
@@ -1529,63 +1556,42 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
           write(semicol)
           write(newline)
         end
-    end
-    local node_name_format
-    local set_node_name_format
-    do
-      local get_num_digits = request('!.number.get_num_dec_digits')
-      local int_to_str = tostring
-      set_node_name_format =
-        function(num_instructions)
-          local num_digits =
-            int_to_str(get_num_digits(num_instructions))
-          node_name_format =
-            quote .. '%' .. '0' .. num_digits .. 'd' .. quote
-        end
-    end
-    local get_node_name
-    do
-      local str_format = string.format
-      get_node_name =
-        function(index)
-          return str_format(node_name_format, index)
-        end
-    end
-    local callgraph_to_dot =
-      function(InstructionsGraph, graph_name, Arg_OutputStream)
-        OutputStream = Arg_OutputStream
-        do
-          local num_instructions = #InstructionsGraph
-          set_node_name_format(num_instructions)
-        end
-        start_graph(graph_name)
-        for
-          instruction_index, Instruction in ipairs(InstructionsGraph)
-        do
-          local name = get_node_name(instruction_index)
-          write_label(name, Instruction.label)
-        end
-        write(newline)
-        for
-          src_instruction_index, Instruction in
-            ipairs(InstructionsGraph)
-        do
-          local NextOnes = Instruction.NextOnes
-          local num_next_ones = #NextOnes
-          if (num_next_ones > 1) then
-            write(newline)
+      callgraph_to_dot =
+        function(InstructionsGraph, graph_name, Arg_OutputStream)
+          OutputStream = Arg_OutputStream
+          do
+            local num_instructions = #InstructionsGraph
+            set_node_name_format(num_instructions)
           end
-          for _, dest_instruction_index in ipairs(NextOnes) do
-            local src_name = get_node_name(src_instruction_index)
-            local dest_name = get_node_name(dest_instruction_index)
-            write_link(src_name, dest_name)
+          start_graph(graph_name)
+          for
+            instruction_index, Instruction in ipairs(InstructionsGraph)
+          do
+            local name = get_node_name(instruction_index)
+            write_label(name, Instruction.label)
           end
-          if (num_next_ones > 1) then
-            write(newline)
+          write(newline)
+          for
+            src_instruction_index, Instruction in
+              ipairs(InstructionsGraph)
+          do
+            local NextOnes = Instruction.NextOnes
+            local is_branch_node = (#NextOnes > 1)
+            if is_branch_node then
+              write(newline)
+            end
+            for _, dest_instruction_index in ipairs(NextOnes) do
+              local src_name = get_node_name(src_instruction_index)
+              local dest_name = get_node_name(dest_instruction_index)
+              write_link(src_name, dest_name)
+            end
+            if is_branch_node then
+              write(newline)
+            end
           end
+          end_graph()
         end
-        end_graph()
-      end
+    end
     return callgraph_to_dot
   end
 return require('run')
