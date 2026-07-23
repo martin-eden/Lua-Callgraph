@@ -39,7 +39,7 @@ mv deploy/workshop/ .
 rm -r -f deploy/
 # )
 
-cp run.sh ../deploy/
+cp layout_callgraphs.sh ../deploy/
 
 #
 # builder/
@@ -48,18 +48,18 @@ cp run.sh ../deploy/
 cd ../builder
 
 # ( Combine all Lua code, reformat and strip comments
-./meld ../src/ run > ../deploy/generate_callgraph_lua.melded.lua
+./meld ../src/ generate_callgraphs_lua > ../deploy/generate_callgraphs_lua.melded.lua
 
 ./reformat_lua \
-  ../deploy/generate_callgraph_lua.melded.lua \
-  ../deploy/generate_callgraph_lua.melded.stripped.lua \
+  ../deploy/generate_callgraphs_lua.melded.lua \
+  ../deploy/generate_callgraphs_lua.melded.stripped.lua \
   --~keep-comments \
   --right-margin=72
-rm ../deploy/generate_callgraph_lua.melded.lua
+rm ../deploy/generate_callgraphs_lua.melded.lua
 
 mv \
-  ../deploy/generate_callgraph_lua.melded.stripped.lua \
-  ../deploy/generate_callgraph_lua.lua
+  ../deploy/generate_callgraphs_lua.melded.stripped.lua \
+  ../deploy/generate_callgraphs_lua.lua
 # )
 
 #
@@ -69,7 +69,7 @@ mv \
 cd ../deploy
 
 # Do test run
-lua generate_callgraph_lua.lua ../samples/test.lua ../output
+./layout_callgraphs.sh ../samples/test.lua ../output
 
 # 2026 # # # #
 # 2026-07-17
