@@ -29,11 +29,14 @@ do
 
   local arrow = '->'
 
+  local kw_strict = 'strict'
   local kw_digraph = 'digraph'
   local kw_label = 'label'
 
   local start_graph =
     function(graph_name)
+      write(kw_strict)
+      write(space)
       write(kw_digraph)
       write(space)
 
