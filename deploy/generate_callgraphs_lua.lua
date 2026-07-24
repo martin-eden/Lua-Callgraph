@@ -578,7 +578,7 @@ _G.package.preload['workshop.table.attach_methods'] =
             __index = Methods,
             __newindex =
               function()
-                error('Table is locked for additions.')
+                error('Table is locked for additions/removals.')
               end,
           }
         setmetatable(Object, Metatable)
@@ -1625,17 +1625,17 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
             src_instruction_index, Instruction in
               ipairs(InstructionsGraph)
           do
+            local src_name = get_node_name(src_instruction_index)
             local NextOnes = Instruction.NextOnes
-            local is_branch_node = (#NextOnes > 1)
-            if is_branch_node then
+            local is_forking_node = (#NextOnes > 1)
+            if is_forking_node then
               write(newline)
             end
             for _, dest_instruction_index in ipairs(NextOnes) do
-              local src_name = get_node_name(src_instruction_index)
               local dest_name = get_node_name(dest_instruction_index)
               write_link(src_name, dest_name)
             end
-            if is_branch_node then
+            if is_forking_node then
               write(newline)
             end
           end
@@ -1645,6 +1645,8 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
   end
 _G.package.preload['callgraph.callgraph_to_dot'] =
   function(...)
+    local LinksWriter = request('callgraph_to_dot.LinksWriter')
+    local add_to_list = request('!.concepts.list.add_item')
     local callgraph_to_dot
     do
       local OutputStream
@@ -1661,7 +1663,6 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
       local closing_brace = '}'
       local opening_bracket = '['
       local closing_bracket = ']'
-      local arrow = '->'
       local kw_strict = 'strict'
       local kw_digraph = 'digraph'
       local kw_label = 'label'
@@ -1725,17 +1726,6 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
           write(semicol)
           write(newline)
         end
-      local write_link =
-        function(src_name, dest_name)
-          write(indent)
-          write(src_name)
-          write(space)
-          write(arrow)
-          write(space)
-          write(dest_name)
-          write(semicol)
-          write(newline)
-        end
       callgraph_to_dot =
         function(InstructionsGraph, graph_name, Arg_OutputStream)
           OutputStream = Arg_OutputStream
@@ -1751,28 +1741,119 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
             write_label(name, Instruction.label)
           end
           write(newline)
+          local LinksWriter = LinksWriter.create(OutputStream)
           for
             src_instruction_index, Instruction in
               ipairs(InstructionsGraph)
           do
+            local src_name = get_node_name(src_instruction_index)
             local NextOnes = Instruction.NextOnes
-            local is_branch_node = (#NextOnes > 1)
-            if is_branch_node then
-              write(newline)
-            end
+            local NextOneNames = {}
             for _, dest_instruction_index in ipairs(NextOnes) do
-              local src_name = get_node_name(src_instruction_index)
-              local dest_name = get_node_name(dest_instruction_index)
-              write_link(src_name, dest_name)
+              add_to_list(
+                NextOneNames, get_node_name(dest_instruction_index)
+              )
             end
-            if is_branch_node then
-              write(newline)
-            end
+            LinksWriter:WriteLinks(src_name, NextOneNames)
           end
           end_graph()
         end
     end
     return callgraph_to_dot
+  end
+_G.package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
+  function(...)
+    local create_instance = request('!.table.create_instance')
+    local OutputStream
+    local write =
+      function(str)
+        OutputStream:Write(str)
+      end
+    local space = ' '
+    local newline = '\010'
+    local semicol = ';'
+    local opening_brace = '{'
+    local closing_brace = '}'
+    local arrow = '->'
+    local indent = '  '
+    local start_statement =
+      function()
+        write(indent)
+      end
+    local end_statement =
+      function()
+        write(semicol)
+        write(newline)
+      end
+    local write_prolonger =
+      function()
+        write(space)
+        write(arrow)
+        write(space)
+      end
+    local Core = { first = false, second = false }
+    local Methods
+    Methods =
+      {
+        create =
+          function(Arg_OutputStream)
+            OutputStream = Arg_OutputStream
+            return create_instance(Core, Methods)
+          end,
+        GetLastDestName =
+          function(Me)
+            return Me.second
+          end,
+        AddNode =
+          function(Me, name)
+            if Me.first then
+              write(Me.first)
+              write_prolonger()
+            end
+            Me.first, Me.second = Me.second, name
+          end,
+        Flush =
+          function(Me)
+            if Me.first then
+              write(Me.first)
+              write_prolonger()
+              write(Me.second)
+              end_statement()
+            end
+            Me.first = false
+            Me.second = false
+          end,
+        WriteLinks =
+          function(Me, source_name, DestNames)
+            if (#DestNames == 0) then
+              Me:Flush()
+            elseif (#DestNames == 1) then
+              local dest_name = DestNames[1]
+              if (source_name == Me:GetLastDestName()) then
+                Me:AddNode(dest_name)
+              else
+                Me:Flush()
+                start_statement()
+                Me:AddNode(source_name)
+                Me:AddNode(dest_name)
+              end
+            else
+              Me:Flush()
+              start_statement()
+              write(source_name)
+              write_prolonger()
+              write(opening_brace)
+              write(space)
+              for _, dest_name in ipairs(DestNames) do
+                write(dest_name)
+                write(space)
+              end
+              write(closing_brace)
+              end_statement()
+            end
+          end,
+      }
+    return Methods
   end
 _G.package.preload['NamesGiver.get_padded_number_format'] =
   function(...)
@@ -1817,7 +1898,6 @@ _G.package.preload['NamesGiver.Interface'] =
     local str_tgf = 'tgf'
     local str_dot = 'dot'
     local slash = '/'
-    local underscore = '_'
     local dot = '.'
     local DefaultCore = { '', '', 0 }
     local Methods
@@ -1885,7 +1965,7 @@ _G.package.preload['NamesGiver.Interface'] =
           function(Me)
             return
               Me:GetSourceName() ..
-              underscore ..
+              dot ..
               get_padded_number_format(Me:GetNumItems())
           end,
       }
