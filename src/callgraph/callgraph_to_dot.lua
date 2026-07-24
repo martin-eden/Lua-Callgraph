@@ -5,6 +5,23 @@
   Last mod.: 2026-07-24
 ]]
 
+--[[
+  .dot (DAG of tomorrow) is text format for graphs
+
+  It's mentioned at
+
+    https://en.wikipedia.org/wiki/DOT_(graph_description_language)
+
+  and described by "$ man dot" and at
+
+    https://graphviz.org/doc/info/lang.html
+
+  It has expressive syntax and nice for manual editing.
+
+  This implementation uses subgraphs to represent node emitting
+  several edges.
+]]
+
 local callgraph_to_dot
 do
   local OutputStream
