@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-07-24
 ]]
 
 -- Imports:
@@ -15,7 +15,6 @@ local str_tgf = 'tgf'
 local str_dot = 'dot'
 
 local slash = '/'
-local underscore = '_'
 local dot = '.'
 
 --[[
@@ -105,7 +104,7 @@ Methods =
       function(Me)
         return
           Me:GetSourceName() ..
-          underscore ..
+          dot ..
           get_padded_number_format(Me:GetNumItems())
       end,
   }
