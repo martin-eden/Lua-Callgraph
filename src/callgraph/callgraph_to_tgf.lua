@@ -2,7 +2,18 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-07-24
+]]
+
+--[[
+  .tgf (trivial graph format) is simple and thus nice
+
+  It's described at
+
+    https://en.wikipedia.org/wiki/Trivial_Graph_Format
+
+  This implementation surrounds branch nodes with empty lines.
+  We can't do much more for niceness.
 ]]
 
 local callgraph_to_tgf
