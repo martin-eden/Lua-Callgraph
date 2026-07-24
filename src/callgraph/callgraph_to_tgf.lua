@@ -12,7 +12,7 @@
 
     https://en.wikipedia.org/wiki/Trivial_Graph_Format
 
-  This implementation surrounds branch nodes with empty lines.
+  This implementation surrounds branching nodes with empty lines.
   We can't do much more for niceness.
 ]]
 
@@ -100,20 +100,19 @@ do
       write_sections_delimiter()
 
       for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
-        -- Implementation surrounds branch nodes with empty lines
+        local src_name = get_node_name(src_instruction_index)
 
         local NextOnes = Instruction.NextOnes
-        local is_branch_node = (#NextOnes > 1)
+        local is_forking_node = (#NextOnes > 1)
 
-        if is_branch_node then write(newline) end
+        if is_forking_node then write(newline) end
 
         for _, dest_instruction_index in ipairs(NextOnes) do
-          local src_name = get_node_name(src_instruction_index)
           local dest_name = get_node_name(dest_instruction_index)
           write_link(src_name, dest_name)
         end
 
-        if is_branch_node then write(newline) end
+        if is_forking_node then write(newline) end
       end
     end
 end
