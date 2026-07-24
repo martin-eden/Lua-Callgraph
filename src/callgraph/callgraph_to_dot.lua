@@ -19,7 +19,7 @@
   It has expressive syntax and nice for manual editing.
 
   This implementation uses subgraphs to represent node emitting
-  several edges.
+  several edges. Also it merges chains into one .dot statement.
 ]]
 
 -- Imports:
