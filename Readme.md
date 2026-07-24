@@ -1,4 +1,4 @@
-[![DeepWiki][DeepWiki_Logo]][DeepWiki_Repo] (will answer for related questions)
+[![DeepWiki][DeepWiki_Logo]][DeepWiki_Repo] (will answer your questions)
 
 ## What
 
