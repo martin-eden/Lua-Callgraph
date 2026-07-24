@@ -22,6 +22,10 @@
   several edges.
 ]]
 
+-- Imports:
+local LinksWriter = request('callgraph_to_dot.LinksWriter')
+local add_to_list = request('!.concepts.list.add_item')
+
 local callgraph_to_dot
 do
   local OutputStream
@@ -43,8 +47,6 @@ do
 
   local opening_bracket = '['
   local closing_bracket = ']'
-
-  local arrow = '->'
 
   local kw_strict = 'strict'
   local kw_digraph = 'digraph'
@@ -124,22 +126,6 @@ do
       write(newline)
     end
 
-  local write_link =
-    function(src_name, dest_name)
-      write(indent)
-
-      write(src_name)
-      write(space)
-
-      write(arrow)
-      write(space)
-
-      write(dest_name)
-
-      write(semicol)
-      write(newline)
-    end
-
   callgraph_to_dot =
     function(InstructionsGraph, graph_name, Arg_OutputStream)
       OutputStream = Arg_OutputStream
@@ -158,41 +144,18 @@ do
 
       write(newline)
 
+      local LinksWriter = LinksWriter.create(OutputStream)
+
       for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
         local src_name = get_node_name(src_instruction_index)
         local NextOnes = Instruction.NextOnes
 
-        local is_branch_node = (#NextOnes > 1)
-
-        if is_branch_node then
-          write(newline)
-          write(indent)
-
-          write(src_name)
-          write(space)
-
-          write(arrow)
-          write(space)
-
-          write(opening_brace)
-          write(space)
-
-          for _, dest_instruction_index in ipairs(NextOnes) do
-            local dest_name = get_node_name(dest_instruction_index)
-            write(dest_name)
-            write(space)
-          end
-
-          write(closing_brace)
-          write(semicol)
-          write(newline)
-          write(newline)
-        else
-          for _, dest_instruction_index in ipairs(NextOnes) do
-            local dest_name = get_node_name(dest_instruction_index)
-            write_link(src_name, dest_name)
-          end
+        local NextOneNames = { }
+        for _, dest_instruction_index in ipairs(NextOnes) do
+          add_to_list(NextOneNames, get_node_name(dest_instruction_index))
         end
+
+        LinksWriter:WriteLinks(src_name, NextOneNames)
       end
 
       end_graph()
