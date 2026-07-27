@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-05-09
+  Last mod.: 2026-07-27
 ]]
 
 --[[
@@ -87,14 +87,12 @@ get_real_ranges =
       add_list(OurRanges, AdjustedRanges)
     end
 
-    if (#NodesPath >= 2) then
-      local ParentNodesPath =
-        select_list_range(NodesPath, 1, #NodesPath - 1)
+    if (#NodesPath < 2) then return OurRanges end
 
-      return get_real_ranges(OurRanges, ParentNodesPath)
-    end
+    local ParentNodesPath =
+      select_list_range(NodesPath, 1, #NodesPath - 1)
 
-    return OurRanges
+    return get_real_ranges(OurRanges, ParentNodesPath)
   end
 
 local get_real_ranges_root =
