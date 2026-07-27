@@ -4,7 +4,7 @@
 
 #
 # Author: Martin Eden
-# Last mod.: 2026-07-17
+# Last mod.: 2026-09-08
 #
 
 #
@@ -39,8 +39,6 @@ mv deploy/workshop/ .
 rm -r -f deploy/
 # )
 
-cp layout_callgraphs.sh ../deploy/
-
 #
 # builder/
 #
@@ -69,7 +67,6 @@ mv \
 cd ../deploy
 
 # Do test run
-./layout_callgraphs.sh ../samples/test.lua ../output
+lua generate_callgraphs_lua.lua ../samples/test.lua ../output
 
-# 2026 # # # #
-# 2026-07-17
+# 2026 # # # # #

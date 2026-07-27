@@ -1,126 +1,46 @@
--- Return table with possible next instructions indices
+-- Core function to determine next instructions
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-17
+  Last mod.: 2026-09-04
 ]]
 
--- Core of this ship
-
--- Implemented for Lua 5.5 opcodes and their semantics
-
-local get_next_ones
+local get_next_offs
 do
-  local Terminators_Map
-  local Jumpers_Map
-  local ForwardJumpers_Map
-  local Skippers_Map
-  local SkippersAndForwardJumpers_Map
-  local SkippersAndBackwardJumpers_Map
+  local use_vm_2015
+  local use_vm_2020
   do
-    local Terminators
-    local Jumpers
-    local ForwardJumpers
-    local Skippers
-    local SkippersAndForwardJumpers
-    local SkippersAndBackwardJumpers
-    do
-      local FlowOpcodes = request('FlowOpcodes')
+    local is_lua_53 = (_VERSION == 'Lua 5.3')
+    local is_lua_54 = (_VERSION == 'Lua 5.4')
+    local is_lua_55 = (_VERSION == 'Lua 5.5')
 
-      Terminators =
-        {
-          FlowOpcodes.return_nothing,
-          FlowOpcodes.return_item,
-          FlowOpcodes.return_sequence,
-        }
-
-      Jumpers =
-        {
-          FlowOpcodes.jump,
-        }
-
-      ForwardJumpers =
-        {
-          FlowOpcodes.check_generic_loop,
-        }
-
-      Skippers =
-        {
-          FlowOpcodes.equal_reg,
-          FlowOpcodes.equal_const_table,
-          FlowOpcodes.less_than,
-          FlowOpcodes.less_or_equal,
-          FlowOpcodes.equal_imm,
-          FlowOpcodes.less_than_imm,
-          FlowOpcodes.less_or_equal_imm,
-          FlowOpcodes.greater_than_imm,
-          FlowOpcodes.greater_or_equal_imm,
-          FlowOpcodes.set_false_and_skip,
-          FlowOpcodes.if_neq_then_skip,
-          FlowOpcodes.if_neq_then_skip_else_set,
-        }
-
-      SkippersAndForwardJumpers =
-        {
-          FlowOpcodes.check_numeric_loop,
-        }
-
-      SkippersAndBackwardJumpers =
-        {
-          FlowOpcodes.numeric_loop_back,
-          FlowOpcodes.generic_loop_back,
-        }
-    end
-
-    local map_values = request('!.table.map_values')
-
-    Terminators_Map = map_values(Terminators)
-    Jumpers_Map = map_values(Jumpers)
-    ForwardJumpers_Map = map_values(ForwardJumpers)
-    Skippers_Map = map_values(Skippers)
-    SkippersAndForwardJumpers_Map = map_values(SkippersAndForwardJumpers)
-    SkippersAndBackwardJumpers_Map = map_values(SkippersAndBackwardJumpers)
+    use_vm_2015 = is_lua_53
+    use_vm_2020 = is_lua_54 or is_lua_55
   end
 
-  local add_to_list = request('!.concepts.list.add_item')
-
-  get_next_ones =
-    function(instruction_index, Instruction)
-      local NextOnes = { }
-
-      local opcode = Instruction[1]
-      local next_instruction_index = instruction_index +  1
-
-      if Terminators_Map[opcode] then
-        ;
-      elseif Jumpers_Map[opcode] then
-        local jump_offset = tonumber(Instruction[2])
-        add_to_list(NextOnes, next_instruction_index + jump_offset)
-      elseif ForwardJumpers_Map[opcode] then
-        local jump_offset = tonumber(Instruction[3])
-        add_to_list(NextOnes, next_instruction_index + jump_offset)
-      elseif Skippers_Map[opcode] then
-        add_to_list(NextOnes, next_instruction_index)
-        add_to_list(NextOnes, next_instruction_index + 1)
-      elseif SkippersAndForwardJumpers_Map[opcode] then
-        local jump_offset = tonumber(Instruction[3])
-        add_to_list(NextOnes, next_instruction_index)
-        add_to_list(NextOnes, next_instruction_index + jump_offset)
-      elseif SkippersAndBackwardJumpers_Map[opcode] then
-        local jump_offset = tonumber(Instruction[3])
-        add_to_list(NextOnes, next_instruction_index)
-        add_to_list(NextOnes, next_instruction_index - jump_offset)
-      else
-        add_to_list(NextOnes, next_instruction_index)
-      end
-
-      return NextOnes
-    end
+  if use_vm_2015 then
+    get_next_offs = request('vm_2015.get_next_offs')
+  elseif use_vm_2020 then
+    get_next_offs = request('vm_2020.get_next_offs')
+  end
 end
 
+local add_to_list = request('!.concepts.list.add_item')
+
 -- Export:
-return get_next_ones
+return
+  function(instruction_index, Instruction)
+    local NextOffs = get_next_offs(Instruction)
+
+    local NextOnes = { }
+    for _, offs in ipairs(NextOffs) do
+      add_to_list(NextOnes, instruction_index + offs)
+    end
+
+    return NextOnes
+  end
 
 --[[
-  2026-07-15
+  2026 # # #
+  2026-09-04
 ]]

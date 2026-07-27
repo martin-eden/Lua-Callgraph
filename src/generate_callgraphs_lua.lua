@@ -2,25 +2,44 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-09-08
 ]]
 
-package.path = package.path .. ';../../../?.lua'
 require('workshop.base')
 
---[[
-  Get parsed closure listings from source code file
-]]
-local get_chunks
+local space
+local newline
 do
-  local file_to_str = request('!.convert.file_to_str')
-  local get_bytecode =
-    request('!.concepts.lua_bytecode_decompiler.bytecode_from_source')
-  local get_listing =
-    request('!.concepts.lua_bytecode_decompiler.listing_from_bytecode')
-  get_chunks =
-    function(source_code_path_name)
-      return get_listing(get_bytecode(file_to_str(source_code_path_name)))
+  local AsciiChars = request('!.concepts.Ascii.Chars')
+  space = AsciiChars.space
+  newline = AsciiChars.newline
+end
+
+local export_listing
+do
+  local get_bytecode_listing = request('!.programs.get_bytecode_listing')
+  local FileStream = request('!.concepts.StreamIo.Output.File')
+  export_listing =
+    function(sourcecode_pathname, listing_pathname)
+      local ListingStream = new(FileStream)
+      ListingStream:Open(listing_pathname)
+      get_bytecode_listing({ sourcecode_pathname }, ListingStream)
+      ListingStream:Close()
+    end
+end
+
+local load_listing
+do
+  local parse_itness = request('!.concepts.codec_itness.parse')
+  local FileStream = request('!.concepts.StreamIo.Input.File')
+  load_listing =
+    function(listing_pathname)
+      local Result
+      local ListingStream = new(FileStream)
+      ListingStream:Open(listing_pathname)
+      Result = parse_itness(ListingStream)
+      ListingStream:Close()
+      return Result
     end
 end
 
@@ -45,7 +64,6 @@ end
 ]]
 local get_callgraph
 do
-  local space = ' '
   local list_to_str = request('!.concepts.list.to_string')
   local get_next_ones = request('callgraph.get_next_ones')
   local add_to_list = request('!.concepts.list.add_item')
@@ -66,116 +84,123 @@ do
     end
 end
 
---[[
-  Export callgraph to .tgf file
-]]
 local export_to_tgf
-do
-  local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-  local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-  export_to_tgf =
-    function(Callgraph, file_name)
-      local OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-      callgraph_to_tgf(Callgraph, OutputStream)
-      OutputStream:Close()
-    end
-end
-
---[[
-  Export callgraph to .dot file
-]]
 local export_to_dot
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-  local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-  export_to_dot =
-    function(Callgraph, graph_name, file_name)
-      local OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-      callgraph_to_dot(Callgraph, graph_name, OutputStream)
-      OutputStream:Close()
+  do
+    local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+    -- Export callgraph to .tgf file
+    export_to_tgf =
+      function(Callgraph, file_name)
+        local OutputStream = new(OutputFileStream)
+        OutputStream:Open(file_name)
+        callgraph_to_tgf(Callgraph, OutputStream)
+        OutputStream:Close()
+      end
+  end
+  do
+    local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+    -- Export callgraph to .dot file
+    export_to_dot =
+      function(Callgraph, file_name)
+        local OutputStream = new(OutputFileStream)
+        OutputStream:Open(file_name)
+        callgraph_to_dot(Callgraph, OutputStream)
+        OutputStream:Close()
+      end
+  end
+end
+
+local dot_to_svg
+do
+  local get_cmd_dot_to_svg =
+    request('!.mechs.cmdline.get_cmd_dot_to_svg')
+  dot_to_svg =
+    function(dot_pathname, svg_pathname)
+      local Command = get_cmd_dot_to_svg(dot_pathname, svg_pathname)
+      local is_ok, Result = Command:Execute()
+      if not is_ok then
+        error(Result.error)
+      end
     end
 end
 
 local usage_text =
 [[
-
-Creates call graphs for Lua code.
+Creates VM instruction call graphs for Lua code
 
 Usage: <lua_file_name> <output_dir>
 
--- Martin, 2026-07
+-- Martin, 2026-09
 ]]
 
 local Config =
   {
-    source_code_path_name = arg[1],
+    sourcecode_pathname = arg[1],
     output_dir_name = arg[2],
   }
 
--- Main:
+local console_write =
+  function(str)
+    io.stdout:write(str)
+  end
+
+local console_print =
+  function(str)
+    console_write(str)
+    console_write(newline)
+  end
+
+local NamesGiver = request('NamesGiver').create()
+
+-- Main
 do
-  local source_code_path_name = Config.source_code_path_name
+  local sourcecode_pathname = Config.sourcecode_pathname
   local output_dir_name = Config.output_dir_name
 
-  if not (source_code_path_name and output_dir_name) then
-    io.stdout:write(usage_text)
+  if not (sourcecode_pathname and output_dir_name) then
+    console_write(usage_text)
     return
   end
 
-  local newline = '\010'
+  console_print('( Generating callgraphs')
 
-  io.stdout:write('( Generating callgraphs', newline)
-
-  local NamesGiver = request('NamesGiver.Interface')
-  NamesGiver = NamesGiver.create()
-  NamesGiver:SetSourceName(source_code_path_name)
-  NamesGiver:SetBaseDir(output_dir_name)
-
-  local get_padded_number_format = request('NamesGiver.get_padded_number_format')
+  NamesGiver:SetOutputDir(output_dir_name)
 
   do
-    local remove_dir = request('!.file_system.directory.remove')
-    local create_dir = request('!.file_system.directory.create')
-
-    local tgf_dir = NamesGiver:GetTgfDir()
-    remove_dir(tgf_dir)
-    create_dir(tgf_dir)
-
-    local dot_dir = NamesGiver:GetDotDir()
-    remove_dir(dot_dir)
-    create_dir(dot_dir)
+    local recreate_dir = request('!.file_system.directory.recreate')
+    recreate_dir(NamesGiver:GetOutputDir())
+    recreate_dir(NamesGiver:GetTgfDir())
+    recreate_dir(NamesGiver:GetDotDir())
+    recreate_dir(NamesGiver:GetSvgDir())
   end
 
-  local Chunks = get_chunks(source_code_path_name)
-
-  NamesGiver:SetNumItems(#Chunks)
-
-  local tgf_file_name_format = NamesGiver:GetTgfPathnameFormat()
-  local dot_graph_name_format = NamesGiver:GetDotGraphnameFormat()
-  local dot_file_name_format = NamesGiver:GetDotPathnameFormat()
-
-  local str_format = string.format
-
-  for chunk_index, Chunk in ipairs(Chunks) do
-    local Callgraph = get_callgraph(Chunk)
+  do
+    local Chunks
     do
-      local file_name = str_format(tgf_file_name_format, chunk_index)
-      export_to_tgf(Callgraph, file_name)
+      local listing_pathname = NamesGiver:GetListingPathname()
+      export_listing(sourcecode_pathname, listing_pathname)
+      Chunks = load_listing(listing_pathname)
     end
-    do
-      local graph_name = str_format(dot_graph_name_format, chunk_index)
-      local file_name = str_format(dot_file_name_format, chunk_index)
-      export_to_dot(Callgraph, graph_name, file_name)
+
+    NamesGiver:SetNumItems(#Chunks)
+
+    for chunk_index, Chunk in ipairs(Chunks) do
+      local Callgraph = get_callgraph(Chunk)
+      export_to_tgf(Callgraph, NamesGiver:GetTgfPathname(chunk_index))
+      export_to_dot(Callgraph, NamesGiver:GetDotPathname(chunk_index))
+      dot_to_svg(
+        NamesGiver:GetDotPathname(chunk_index),
+        NamesGiver:GetSvgPathname(chunk_index)
+      )
     end
   end
 
-  io.stdout:write(')', newline)
+  console_print(')')
 end
 
 --[[
-  2026-07-15
-  2026-07-17
-  2026-07-23
+  2026 # # # # # #
+  2026-09-08
 ]]

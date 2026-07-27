@@ -2,171 +2,119 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-24
+  Last mod.: 2026-09-05
 ]]
 
 --[[
   .dot (DAG of tomorrow) is text format for graphs
 
-  It's mentioned at
-
-    https://en.wikipedia.org/wiki/DOT_(graph_description_language)
-
-  and described by "$ man dot" and at
+  It's described at
 
     https://graphviz.org/doc/info/lang.html
 
-  It has expressive syntax and nice for manual editing.
+  (and also described by "$ man dot")
 
+  and mentioned at
+
+    https://en.wikipedia.org/wiki/DOT_(graph_description_language)
+
+  It has expressive syntax and nice for manual editing.
+]]
+
+--[[
   This implementation uses subgraphs to represent node emitting
   several edges. Also it merges chains into one .dot statement.
 ]]
 
--- Imports:
-local LinksWriter = request('callgraph_to_dot.LinksWriter')
-local add_to_list = request('!.concepts.list.add_item')
+local Writer = request('callgraph_to_dot.Writer')
+local IndexSerializer = request('!.concepts.PaddedIndex')
 
-local callgraph_to_dot
-do
-  local OutputStream
-
-  local write =
-    function(str)
-      OutputStream:Write(str)
-    end
-
-  local space = ' '
-  local newline = '\010'
-
-  local quote = '"'
-  local semicol = ';'
-  local equal = '='
-
-  local opening_brace = '{'
-  local closing_brace = '}'
-
-  local opening_bracket = '['
-  local closing_bracket = ']'
-
-  local kw_strict = 'strict'
-  local kw_digraph = 'digraph'
-  local kw_label = 'label'
-
-  local start_graph =
-    function(graph_name)
-      write(kw_strict)
-      write(space)
-      write(kw_digraph)
-      write(space)
-
-      write(quote)
-      write(graph_name)
-      write(quote)
-      write(newline)
-
-      write(opening_brace)
-      write(newline)
-    end
-
-  local end_graph =
-    function()
-      write(closing_brace)
-      write(newline)
-    end
-
-  local set_node_name_format
-  local get_node_name
-  do
-    local node_name_format
-    do
-      local get_num_digits = request('!.number.get_num_dec_digits')
-      local int_to_str = tostring
-      set_node_name_format =
-        function(num_instructions)
-          local num_digits = get_num_digits(num_instructions)
-          node_name_format =
-            quote .. '%0' .. int_to_str(num_digits) .. 'd' .. quote
-        end
-    end
-    do
-      local str_format = string.format
-      get_node_name =
-        function(index)
-          return str_format(node_name_format, index)
-        end
-    end
+local get_node_name =
+  function(index)
+    return IndexSerializer:ToString(index)
   end
 
-  local indent = '  '
-
-  local write_label =
-    function(name, label)
-      write(indent)
-
-      write(name)
-      write(space)
-
-      write(opening_bracket)
-      write(space)
-
-      write(kw_label)
-      write(space)
-
-      write(equal)
-      write(space)
-
-      write(quote)
-      write(label)
-      write(quote)
-
-      write(space)
-      write(closing_bracket)
-
-      write(semicol)
-      write(newline)
-    end
-
-  callgraph_to_dot =
-    function(InstructionsGraph, graph_name, Arg_OutputStream)
-      OutputStream = Arg_OutputStream
-
-      do
-        local num_instructions = #InstructionsGraph
-        set_node_name_format(num_instructions)
+local write_link
+do
+  local add_to_list = request('!.concepts.list.add_item')
+  write_link =
+    function(index, NextOnes)
+      local NextOneNames = { }
+      for _, next_one_index in ipairs(NextOnes) do
+        add_to_list(NextOneNames, get_node_name(next_one_index))
       end
-
-      start_graph(graph_name)
-
-      for instruction_index, Instruction in ipairs(InstructionsGraph) do
-        local name = get_node_name(instruction_index)
-        write_label(name, Instruction.label)
-      end
-
-      write(newline)
-
-      local LinksWriter = LinksWriter.create(OutputStream)
-
-      for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
-        local src_name = get_node_name(src_instruction_index)
-        local NextOnes = Instruction.NextOnes
-
-        local NextOneNames = { }
-        for _, dest_instruction_index in ipairs(NextOnes) do
-          add_to_list(NextOneNames, get_node_name(dest_instruction_index))
-        end
-
-        LinksWriter:WriteLinks(src_name, NextOneNames)
-      end
-
-      end_graph()
+      Writer:Link(get_node_name(index), NextOneNames)
     end
 end
+
+local serialize_links =
+  function(InstructionsGraph)
+    local NumInLinks_Map = { }
+
+    for instruction_index in ipairs(InstructionsGraph) do
+      NumInLinks_Map[instruction_index] = 0
+    end
+    NumInLinks_Map[1] = 1
+
+    for instruction_index, Instruction in ipairs(InstructionsGraph) do
+      for _, next_one_index in ipairs(Instruction.NextOnes) do
+        NumInLinks_Map[next_one_index] = NumInLinks_Map[next_one_index] + 1
+      end
+    end
+
+    local ProcessedNodes_Map = { }
+    for i = 1, #InstructionsGraph do
+      ProcessedNodes_Map[i] = false
+    end
+
+    for first_instruction_index = 1, #InstructionsGraph do
+      local instruction_index = first_instruction_index
+      while true do
+        local Instruction = InstructionsGraph[instruction_index]
+
+        if not Instruction then break end
+        if ProcessedNodes_Map[instruction_index] then break end
+
+        if (NumInLinks_Map[instruction_index] > 1) then
+          Writer:DoneLinks()
+        end
+        write_link(instruction_index, Instruction.NextOnes)
+
+        ProcessedNodes_Map[instruction_index] = true
+
+        if (#Instruction.NextOnes ~= 1) then break end
+
+        instruction_index = Instruction.NextOnes[1]
+
+        if (NumInLinks_Map[instruction_index] > 1) then break end
+      end
+    end
+
+    Writer:DoneLinks()
+  end
+
+local callgraph_to_dot =
+  function(InstructionsGraph, OutputStream)
+    Writer = Writer.create(OutputStream)
+    IndexSerializer = IndexSerializer.create(#InstructionsGraph)
+
+    Writer:StartGraph()
+
+    for instruction_index, Instruction in ipairs(InstructionsGraph) do
+      Writer:Node(get_node_name(instruction_index), Instruction.label)
+    end
+
+    Writer:EmptyLine()
+
+    serialize_links(InstructionsGraph)
+
+    Writer:EndGraph()
+  end
 
 -- Export:
 return callgraph_to_dot
 
 --[[
-  2026-07-15
-  2026-07-17
-  2026-07-23
+  2026 # # # # # #
+  2026-09-03
 ]]

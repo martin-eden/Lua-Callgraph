@@ -2,128 +2,97 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-24
+  Last mod.: 2026-09-05
+]]
+
+--[[
+  Main function is write_links() and it's called with arguments like
+
+    '11' { '12' }
+    '12' { '13' }
+    '13' { '14' '15' }
+
+  It does two smart things:
+
+    * Detects chains and writes them compactly
+    * Uses subgraphs if profitable
+
+    > "11" -> "12" - "13" -> { "14" "15" };
 ]]
 
 -- Imports:
-local create_instance = request('!.table.create_instance')
-
-local OutputStream
-
-local write =
-  function(str)
-    OutputStream:Write(str)
-  end
-
-local space = ' '
-local newline = '\010'
-
-local semicol = ';'
-
-local opening_brace = '{'
-local closing_brace = '}'
-
-local arrow = '->'
-
-local indent = '  '
-
-local start_statement =
-  function()
-    write(indent)
-  end
-
-local end_statement =
-  function()
-    write(semicol)
-    write(newline)
-  end
-
-local write_prolonger =
-  function()
-    write(space)
-    write(arrow)
-    write(space)
-  end
+local Syntels = request('Syntels')
 
 --[[
-  Core storage format:
+  Queue storage format:
 
-    first [s] -- last source node name
-    second [s] -- last destination node name
+    1 [s] -- last source node name
+    2 [s] -- last destination node name
 ]]
 
-local Core = { first = false, second = false }
+local Queue = { [1] = false, [2] = false }
 
-local Methods
-Methods =
-  {
-    create =
-      function(Arg_OutputStream)
-        OutputStream = Arg_OutputStream
+local queue_add =
+  function(Me, name)
+    if Queue[1] then
+      Me:Write(Queue[1])
+      Me:Arrow()
+    end
+    Queue[1], Queue[2] = Queue[2], name
+  end
 
-        return create_instance(Core, Methods)
-      end,
+local queue_flush =
+  function(Me)
+    if Queue[1] then
+      Me:Write(Queue[1])
+      Me:Arrow()
+      Me:Write(Queue[2])
+      Me:EndStatement()
+    end
+    Queue[1], Queue[2] = false, false
+  end
 
-    GetLastDestName =
-      function(Me) return Me.second end,
+local quote = request('quote')
 
-    AddNode =
-      function(Me, name)
-        if Me.first then
-          write(Me.first)
-          write_prolonger()
-        end
-        Me.first, Me.second = Me.second, name
-      end,
+local Link =
+  function(Me, source_name, DestNames)
+    source_name = quote(source_name)
+    if (#DestNames == 0) then
+      queue_flush(Me)
+    elseif (#DestNames == 1) then
+      local dest_name = quote(DestNames[1])
 
-    Flush =
-      function(Me)
-        if Me.first then
-          write(Me.first)
-          write_prolonger()
-          write(Me.second)
-          end_statement()
-        end
-
-        Me.first = false
-        Me.second = false
-      end,
-
-    WriteLinks =
-      function(Me, source_name, DestNames)
-        if (#DestNames == 0) then
-          Me:Flush()
-        elseif (#DestNames == 1) then
-          local dest_name = DestNames[1]
-
-          if (source_name == Me:GetLastDestName()) then
-            Me:AddNode(dest_name)
-          else
-            Me:Flush()
-            start_statement()
-            Me:AddNode(source_name)
-            Me:AddNode(dest_name)
-          end
-        else
-          Me:Flush()
-          start_statement()
-          write(source_name)
-          write_prolonger()
-          write(opening_brace)
-          write(space)
-          for _, dest_name in ipairs(DestNames) do
-            write(dest_name)
-            write(space)
-          end
-          write(closing_brace)
-          end_statement()
-        end
-      end,
-  }
+      if (source_name == Queue[2]) then
+        queue_add(Me, dest_name)
+      else
+        queue_flush(Me)
+        queue_add(Me, source_name)
+        queue_add(Me, dest_name)
+      end
+    else
+      if (source_name == Queue[2]) then
+        Me:Write(Queue[1])
+        Me:Arrow()
+        Me:Write(Queue[2])
+        Queue[1], Queue[2] = false, false
+      else
+        queue_flush(Me)
+        Me:Write(source_name)
+      end
+      Me:Arrow()
+      Me:Subgraph(DestNames)
+      Me:EndStatement()
+    end
+  end
 
 -- Export:
-return Methods
+return
+  {
+    Link = Link,
+    DoneLinks = queue_flush,
+  }
 
 --[[
-  2026-07-24
+  2026 # #
+  2026-09-02
 ]]
