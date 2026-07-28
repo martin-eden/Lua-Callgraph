@@ -2,17 +2,39 @@
 
 ## What
 
-| Created | Updated | Code size | License |
-|:-------:|:-------:|:---------:|:-------:|
-| 2026-07 | 2026-07 |  < 80 K   |  LGPL3  |
+| Created |  Updated   | Code size | License |
+|:-------:|:----------:|:---------:|:-------:|
+| 2026-07 | 2026-09-08 |   < 90 K  |  LGPL3  |
 
-Generates call graphs for any valid Lua 5.5 source code.
+Generates control flow graphs for any valid Lua (5.3 5.4 5.5) source code.
 
-Graphs are generated in two formats: `.tgf` (trivial graph format)
-and in `.dot` (graph format for [`Graphviz`][Graphviz] package)
+## Workflow and details
 
-`.tgf` can be loaded into [`yEd`][yEd] graph editor and manually processed.
-`.dot` can be converted to `.svg` with supplied shell script.
+We will place results in given directory.
+
+We will use Lua compiler `luac` to get VM (virtual machine) instructions
+from source code:
+
+  * `.is` (Itness, strings tree)
+
+    VM instructions listing. Human- and machine-friendly format.
+
+We will create callgraphs in following formats:
+
+  * `.tgf` (trivial graph format)
+
+    Machine-friendly format. Graphs can be loaded by [`yEd`][yEd]
+    graph editor and manually processed.
+
+  * `.dot` (graph format of [`Graphviz`][Graphviz] program)
+
+    Human-friendly format. Required to layout graphs to `.svg`.
+
+We will use `dot` program from `graphviz` to layout graphs:
+
+  * `.svg` (simple vector graphics)
+
+    XML-based format for vector images. Used to display graphs to human.
 
 ![Part of generated image][lua_callgraph_img]
 
@@ -22,45 +44,37 @@ and in `.dot` (graph format for [`Graphviz`][Graphviz] package)
 Repository contains
 
   * Compiled code in [`deploy/`][deploy]
+  * Sample output in [`output/`](output/)
+  * Sample input in [`samples/test.lua`](samples/test.lua)
   * Complete source code in [`src/`][src]
   * Rebuild script and tools in [`builder/`](builder/)
-  * Sample code in [`samples/test.lua`](samples/test.lua)
-  * Sample output in [`output/`](output/)
 
 
 ## Requirements
 
   * Linux
-  * Lua 5.5 (not tested yet on 5.3 and 5.4)
-  * `graphviz` package for `dot` program
+  * Lua 5.5 (or 5.4, 5.3) (`sudo apt install lua`)
+  * `graphviz` package for `dot` program (`sudo apt install graphviz`)
 
 
 ## Typical usage
 
-Save two files from [`deploy/`][deploy]:
+  * Save [`generate_callgraphs_lua.lua`][compiled_tool] from
+    [`deploy/`][deploy]
 
-  * [generate_callgraphs_lua.lua][compiled_tool] creates graphs
-    descriptions in two text formats:
+  * Add it to your programs (f.e. place it in `~/bin/`)
+
+  * Try it
 
     ```
     $ lua generate_callgraphs_lua.lua
-
-    Creates call graphs for Lua code.
+    Creates VM instruction call graphs for Lua code
 
     Usage: <lua_file_name> <output_dir>
 
-    -- Martin, 2026-07
+    -- Martin, 2026-09
     ```
-  * [layout_callgraphs.sh][layout_script] calls `dot` tool to
-    layout graphs and save them as `.svg` images:
 
-    ```
-    $ ./layout_callgraphs.sh
-    For given Lua source file creates .svg callgraphs in <output_dir>/svg
-
-    Usage: lua_source_file output_dir
-
-    ```
 
 ## Modification
 
@@ -70,10 +84,42 @@ Modify files in [`src/`][src].
 ## Rebuilding
 
   * Clone [`workshop`][workshop] repo
-  * Checkout it near current date, `2026-07-24`
+  * Checkout it to date near "Updated" date from stats plate (at header of this Readme)
   * Modify `package.path` in [`builder/create_deploy.lua`][create_deploy]
-    so that it finds your cloned `workshop`
+    so it can find your cloned `workshop` repo
   * Run [`builder/rebuild.sh`][rebuild]
+
+
+## Notes
+
+  * There can be orphaned VM instructions in graphs. They are present
+    in `luac -l` listing we are using. We're not going to eliminate them,
+    our scope is show what is present, not generating nice graphs.
+
+  * "Callgraph" name is a bit misleading
+
+    We are making callgraph for VM instructions. On higher level
+    it's called "flowchart".
+
+  * It works for compiled and stripped Lua bytecode
+
+    You don't need original sources.
+
+  * Some functionality extensions are not planned
+
+    Someone may think that adding coloring and shaping features
+    in `.dot` files is improvement. We don't agree.
+
+    If you want nice graph -- load `.tgf` into `yEd`. Apply one of it's
+    layouts. Do shaping and coloring there as you please. Export to `.svg`.
+
+  * Basically each function is "closure" and stored in separate file
+
+    Building one graph for all closures is possible (and interesting)
+    but result will be beyond our comprehension.
+
+    Try tool on `builder/reformat_lua`. It will create over 500 graphs.
+    Imagine them all merged into one graph. Not practical.
 
 
 ## See also
