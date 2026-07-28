@@ -1,6 +1,5 @@
 _G.package.preload['generate_callgraphs_lua'] =
   function(...)
-    package.path = package.path .. ';../../../?.lua'
     require('workshop.base')
     local get_chunks
     do
@@ -1543,8 +1542,8 @@ _G.package.preload['callgraph.get_next_ones'] =
             add_to_list(NextOnes, next_instruction_index + jump_offset)
           elseif SkippersAndBackwardJumpers_Map[opcode] then
             local jump_offset = tonumber(Instruction[3])
-            add_to_list(NextOnes, next_instruction_index)
             add_to_list(NextOnes, next_instruction_index - jump_offset)
+            add_to_list(NextOnes, next_instruction_index)
           else
             add_to_list(NextOnes, next_instruction_index)
           end
@@ -1646,6 +1645,41 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
 _G.package.preload['callgraph.callgraph_to_dot'] =
   function(...)
     local DotSerializer = request('callgraph_to_dot.DotSerializer')
+    local serialize_links
+    do
+      serialize_links =
+        function(InstructionsGraph)
+          local NumInLinks_Map = {}
+          for instruction_index in ipairs(InstructionsGraph) do
+            NumInLinks_Map[instruction_index] = 0
+          end
+          NumInLinks_Map[1] = 1
+          for
+            instruction_index, Instruction in ipairs(InstructionsGraph)
+          do
+            local NextOnes = Instruction.NextOnes
+            for _, next_one_index in ipairs(NextOnes) do
+              local num_in_links = NumInLinks_Map[next_one_index] or 0
+              num_in_links = num_in_links + 1
+              NumInLinks_Map[next_one_index] = num_in_links
+            end
+          end
+          for
+            instruction_index, Instruction in ipairs(InstructionsGraph)
+          do
+            local NextOnes = Instruction.NextOnes
+            if (#NextOnes == 0) then
+              goto next
+            end
+            if (NumInLinks_Map[instruction_index] > 1) then
+              DotSerializer.done_write_links()
+            end
+            DotSerializer.write_links(instruction_index, NextOnes)
+            ::next::
+          end
+          DotSerializer.done_write_links()
+        end
+    end
     local callgraph_to_dot
     do
       local newline = '\010'
@@ -1657,22 +1691,15 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
               DotSerializer.create(num_instructions, OutputStream)
           end
           DotSerializer.start_graph(graph_name)
-          for
-            instruction_index, Instruction in ipairs(InstructionsGraph)
-          do
-            DotSerializer.write_label(
-              instruction_index, Instruction.label
-            )
-          end
+          serialize_links(InstructionsGraph)
           OutputStream:Write(newline)
           for
             instruction_index, Instruction in ipairs(InstructionsGraph)
           do
-            DotSerializer.write_links(
-              instruction_index, Instruction.NextOnes
+            DotSerializer.write_node(
+              instruction_index, Instruction.label
             )
           end
-          DotSerializer.done_write_links()
           DotSerializer.end_graph()
         end
     end
@@ -1681,33 +1708,19 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
 _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
   function(...)
     local Writer = request('DotSerializer.Writer')
-    local Spaces = request('DotSerializer.Spaces')
     local Syntels = request('DotSerializer.Syntels')
-    local write
-    local write_indent
+    local LinksWriter = request('DotSerializer.LinksWriter')
+    local write_label
     do
-      local indent = Spaces.indent
-      write_indent =
-        function()
-          write(indent)
-        end
-    end
-    local write_cont
-    do
-      local space = Spaces.space
-      write_cont =
-        function(str)
-          write(str)
-          write(space)
-        end
-    end
-    local write_final
-    do
-      local newline = Spaces.newline
-      write_final =
-        function(str)
-          write(str)
-          write(newline)
+      local label_kw = Syntels.kw_label
+      local assign = Syntels.assign
+      write_label =
+        function(label)
+          Writer.start_attr()
+          Writer.write_cont(label_kw)
+          Writer.write_cont(assign)
+          Writer.write_cont(label)
+          Writer.end_attr()
         end
     end
     local quote
@@ -1725,10 +1738,10 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
       local start_graph_str = Syntels.start_graph
       start_graph =
         function(graph_name)
-          write_cont(strict)
-          write_cont(digraph)
-          write_final(quote(graph_name))
-          write_final(start_graph_str)
+          Writer.write_cont(strict)
+          Writer.write_cont(digraph)
+          Writer.write_final(quote(graph_name))
+          Writer.write_final(start_graph_str)
         end
     end
     local end_graph
@@ -1736,7 +1749,7 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
       local end_graph_str = Syntels.end_graph
       end_graph =
         function()
-          write_final(end_graph_str)
+          Writer.write_final(end_graph_str)
         end
     end
     local init_get_node_name
@@ -1762,26 +1775,13 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
           end
       end
     end
-    local write_label
-    do
-      local start_attr = Syntels.start_attr
-      local end_attr = Syntels.end_attr
-      local label_str = Syntels.kw_label
-      local assign = Syntels.assign
-      local end_statement = Syntels.end_statement
-      write_label =
-        function(index, label)
-          write_indent()
-          write_cont(get_node_name(index))
-          write_cont(start_attr)
-          write_cont(label_str)
-          write_cont(assign)
-          write_cont(quote(label))
-          write(end_attr)
-          write_final(end_statement)
-        end
-    end
-    local LinksWriter = request('DotSerializer.LinksWriter')
+    local write_node =
+      function(index, label)
+        Writer.start_statement()
+        Writer.write_cont(get_node_name(index))
+        write_label(quote(label))
+        Writer.end_statement()
+      end
     local write_links
     do
       local add_to_list = request('!.concepts.list.add_item')
@@ -1800,14 +1800,13 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
         create =
           function(num_instructions, OutputStream)
             init_get_node_name(num_instructions)
-            Writer.create_write(OutputStream)
-            write = Writer.write
-            LinksWriter.init(write)
+            Writer.init(OutputStream)
+            LinksWriter.init(Writer)
             return Methods
           end,
         start_graph = start_graph,
         end_graph = end_graph,
-        write_label = write_label,
+        write_node = write_node,
         write_links = write_links,
         done_write_links = LinksWriter.done_write_links,
       }
@@ -1828,73 +1827,38 @@ _G.package.preload[
   'callgraph.callgraph_to_dot.DotSerializer.LinksWriter'
 ] =
   function(...)
-    local Spaces = request('Spaces')
     local Syntels = request('Syntels')
-    local write
-    local write_indent
-    do
-      local indent = Spaces.indent
-      write_indent =
-        function()
-          write(indent)
-        end
-    end
-    local write_cont
-    do
-      local space = Spaces.space
-      write_cont =
-        function(str)
-          write(str)
-          write(space)
-        end
-    end
-    local write_final
-    do
-      local end_statement_str = Syntels.end_statement
-      local newline = Spaces.newline
-      write_final =
-        function(str)
-          write(str)
-          write(end_statement_str)
-          write(newline)
-        end
-    end
-    local write_arrow
-    do
-      local arrow = Syntels.arrow
-      write_arrow =
-        function()
-          write_cont(arrow)
-        end
-    end
+    local Writer
     local write_subgraph
     do
       local start_graph = Syntels.start_graph
       local end_graph = Syntels.end_graph
       write_subgraph =
         function(DestNames)
-          write_cont(start_graph)
+          Writer.write_cont(start_graph)
           for _, dest_name in ipairs(DestNames) do
-            write_cont(dest_name)
+            Writer.write_cont(dest_name)
           end
-          write_final(end_graph)
+          Writer.write(end_graph)
+          Writer.end_statement()
         end
     end
     local Queue = { [1] = false, [2] = false }
     local queue_add =
       function(name)
         if Queue[1] then
-          write_cont(Queue[1])
-          write_arrow()
+          Writer.write_cont(Queue[1])
+          Writer.write_arrow()
         end
         Queue[1], Queue[2] = Queue[2], name
       end
     local queue_flush =
       function()
         if Queue[1] then
-          write_cont(Queue[1])
-          write_arrow()
-          write_final(Queue[2])
+          Writer.write_cont(Queue[1])
+          Writer.write_arrow()
+          Writer.write(Queue[2])
+          Writer.end_statement()
         end
         Queue[1], Queue[2] = false, false
       end
@@ -1908,23 +1872,32 @@ _G.package.preload[
             queue_add(dest_name)
           else
             queue_flush()
-            write_indent()
+            Writer.start_statement()
             queue_add(source_name)
             queue_add(dest_name)
           end
         else
-          queue_flush()
-          write_indent()
-          write_cont(source_name)
-          write_arrow()
-          write_subgraph(DestNames)
+          if (source_name == Queue[2]) then
+            Writer.write_cont(Queue[1])
+            Writer.write_arrow()
+            Writer.write_cont(Queue[2])
+            Writer.write_arrow()
+            Queue[1], Queue[2] = false, false
+            write_subgraph(DestNames)
+          else
+            queue_flush()
+            Writer.start_statement()
+            Writer.write_cont(source_name)
+            Writer.write_arrow()
+            write_subgraph(DestNames)
+          end
         end
       end
     local Interface =
       {
         init =
-          function(write_func)
-            write = write_func
+          function(Arg_Writer)
+            Writer = Arg_Writer
           end,
         write_links = write_links,
         done_write_links = queue_flush,
@@ -1968,20 +1941,102 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer.Ascii'] =
   end
 _G.package.preload['callgraph.callgraph_to_dot.DotSerializer.Writer'] =
   function(...)
+    local Spaces = request('Spaces')
+    local Syntels = request('Syntels')
     local OutputStream
+    local line_len = 0
+    local write =
+      function(str)
+        if (str == '') then
+          return
+        end
+        OutputStream:Write(str)
+        line_len = line_len + #str
+      end
+    local write_cont
+    do
+      local space = Spaces.space
+      write_cont =
+        function(str)
+          write(str)
+          write(space)
+        end
+    end
+    local write_final
+    do
+      local newline = Spaces.newline
+      write_final =
+        function(str)
+          write(str)
+          write(newline)
+          line_len = 0
+        end
+    end
+    local write_indent
+    do
+      local indent = Spaces.indent
+      write_indent =
+        function()
+          write(indent)
+        end
+    end
+    local start_statement =
+      function()
+        write_indent()
+      end
+    local end_statement
+    do
+      local end_statement_str = Syntels.end_statement
+      end_statement =
+        function()
+          write_final(end_statement_str)
+        end
+    end
+    local start_attr
+    do
+      local start_attr_str = Syntels.start_attr
+      start_attr =
+        function()
+          write_cont(start_attr_str)
+        end
+    end
+    local end_attr
+    do
+      local end_attr_str = Syntels.end_attr
+      end_attr =
+        function()
+          write(end_attr_str)
+        end
+    end
+    local write_arrow
+    do
+      local wrapping_len = 45
+      local arrow = Syntels.arrow
+      write_arrow =
+        function()
+          if (line_len > wrapping_len) then
+            write_final(arrow)
+            write_indent()
+            write_indent()
+          else
+            write_cont(arrow)
+          end
+        end
+    end
     local Methods =
       {
-        write =
-          function(str)
-            if (str == '') then
-              return
-            end
-            OutputStream:Write(str)
-          end,
-        create_write =
+        init =
           function(Arg_OutputStream)
             OutputStream = Arg_OutputStream
           end,
+        write = write,
+        write_cont = write_cont,
+        write_final = write_final,
+        start_statement = start_statement,
+        end_statement = end_statement,
+        start_attr = start_attr,
+        end_attr = end_attr,
+        write_arrow = write_arrow,
       }
     return Methods
   end
