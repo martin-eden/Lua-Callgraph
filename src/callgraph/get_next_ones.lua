@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-17
+  Last mod.: 2026-07-28
 ]]
 
 -- Core of this ship
@@ -108,8 +108,8 @@ do
         add_to_list(NextOnes, next_instruction_index + jump_offset)
       elseif SkippersAndBackwardJumpers_Map[opcode] then
         local jump_offset = tonumber(Instruction[3])
-        add_to_list(NextOnes, next_instruction_index)
         add_to_list(NextOnes, next_instruction_index - jump_offset)
+        add_to_list(NextOnes, next_instruction_index)
       else
         add_to_list(NextOnes, next_instruction_index)
       end

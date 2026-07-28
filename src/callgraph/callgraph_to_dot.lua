@@ -2,11 +2,44 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-27
+  Last mod.: 2026-07-28
 ]]
 
 -- Imports:
 local DotSerializer = request('callgraph_to_dot.DotSerializer')
+
+local serialize_links
+do
+  serialize_links =
+    function(InstructionsGraph)
+      local NumInLinks_Map = { }
+
+      for instruction_index in ipairs(InstructionsGraph) do
+        NumInLinks_Map[instruction_index] = 0
+      end
+      NumInLinks_Map[1] = 1
+
+      for instruction_index, Instruction in ipairs(InstructionsGraph) do
+        local NextOnes = Instruction.NextOnes
+        for _, next_one_index in ipairs(NextOnes) do
+          local num_in_links = NumInLinks_Map[next_one_index] or 0
+          num_in_links = num_in_links + 1
+          NumInLinks_Map[next_one_index] = num_in_links
+        end
+      end
+
+      for instruction_index, Instruction in ipairs(InstructionsGraph) do
+        local NextOnes = Instruction.NextOnes
+        if (#NextOnes == 0) then goto next end
+        if (NumInLinks_Map[instruction_index] > 1) then
+          DotSerializer.done_write_links()
+        end
+        DotSerializer.write_links(instruction_index, NextOnes)
+        :: next ::
+      end
+      DotSerializer.done_write_links()
+    end
+end
 
 local callgraph_to_dot
 do
@@ -22,16 +55,13 @@ do
 
       DotSerializer.start_graph(graph_name)
 
-      for instruction_index, Instruction in ipairs(InstructionsGraph) do
-        DotSerializer.write_label(instruction_index, Instruction.label)
-      end
+      serialize_links(InstructionsGraph)
 
       OutputStream:Write(newline)
 
       for instruction_index, Instruction in ipairs(InstructionsGraph) do
-        DotSerializer.write_links(instruction_index, Instruction.NextOnes)
+        DotSerializer.write_node(instruction_index, Instruction.label)
       end
-      DotSerializer.done_write_links()
 
       DotSerializer.end_graph()
     end

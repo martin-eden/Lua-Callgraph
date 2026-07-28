@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-27
+  Last mod.: 2026-07-28
 ]]
 
 --[[
@@ -14,61 +14,17 @@
 
   It does two smart things:
 
-    * Detects chains and writes them compactly:
+    * Detects chains and writes them compactly
+    * Uses subgraphs if profitable
 
-      > "11" -> "12" - "13";
-
-    * Uses subgraphs if profitable:
-
-      > "13" -> { "14" "15" };
+    > "11" -> "12" - "13" -> { "14" "15" };
 ]]
 
 -- Imports:
-local Spaces = request('Spaces')
 local Syntels = request('Syntels')
 
--- Initialized in init()
-local write
-
-local write_indent
-do
-  local indent = Spaces.indent
-  write_indent =
-    function()
-      write(indent)
-    end
-end
-
-local write_cont
-do
-  local space = Spaces.space
-  write_cont =
-    function(str)
-      write(str)
-      write(space)
-    end
-end
-
-local write_final
-do
-  local end_statement_str = Syntels.end_statement
-  local newline = Spaces.newline
-  write_final =
-    function(str)
-      write(str)
-      write(end_statement_str)
-      write(newline)
-    end
-end
-
-local write_arrow
-do
-  local arrow = Syntels.arrow
-  write_arrow =
-    function()
-      write_cont(arrow)
-    end
-end
+-- Set in init()
+local Writer
 
 local write_subgraph
 do
@@ -76,11 +32,12 @@ do
   local end_graph = Syntels.end_graph
   write_subgraph =
     function(DestNames)
-      write_cont(start_graph)
+      Writer.write_cont(start_graph)
       for _, dest_name in ipairs(DestNames) do
-        write_cont(dest_name)
+        Writer.write_cont(dest_name)
       end
-      write_final(end_graph)
+      Writer.write(end_graph)
+      Writer.end_statement()
     end
 end
 
@@ -96,8 +53,8 @@ local Queue = { [1] = false, [2] = false }
 local queue_add =
   function(name)
     if Queue[1] then
-      write_cont(Queue[1])
-      write_arrow()
+      Writer.write_cont(Queue[1])
+      Writer.write_arrow()
     end
     Queue[1], Queue[2] = Queue[2], name
   end
@@ -105,9 +62,10 @@ local queue_add =
 local queue_flush =
   function()
     if Queue[1] then
-      write_cont(Queue[1])
-      write_arrow()
-      write_final(Queue[2])
+      Writer.write_cont(Queue[1])
+      Writer.write_arrow()
+      Writer.write(Queue[2])
+      Writer.end_statement()
     end
     Queue[1], Queue[2] = false, false
   end
@@ -123,24 +81,33 @@ local write_links =
         queue_add(dest_name)
       else
         queue_flush()
-        write_indent()
+        Writer.start_statement()
         queue_add(source_name)
         queue_add(dest_name)
       end
     else
-      queue_flush()
-      write_indent()
-      write_cont(source_name)
-      write_arrow()
-      write_subgraph(DestNames)
+      if (source_name == Queue[2]) then
+        Writer.write_cont(Queue[1])
+        Writer.write_arrow()
+        Writer.write_cont(Queue[2])
+        Writer.write_arrow()
+        Queue[1], Queue[2] = false, false
+        write_subgraph(DestNames)
+      else
+        queue_flush()
+        Writer.start_statement()
+        Writer.write_cont(source_name)
+        Writer.write_arrow()
+        write_subgraph(DestNames)
+      end
     end
   end
 
 local Interface =
   {
     init =
-      function(write_func)
-        write = write_func
+      function(Arg_Writer)
+        Writer = Arg_Writer
       end,
     write_links = write_links,
     done_write_links = queue_flush,

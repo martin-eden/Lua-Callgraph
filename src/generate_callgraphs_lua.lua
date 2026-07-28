@@ -2,10 +2,9 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-07-28
 ]]
 
-package.path = package.path .. ';../../../?.lua'
 require('workshop.base')
 
 --[[
