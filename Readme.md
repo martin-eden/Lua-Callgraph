@@ -4,7 +4,7 @@
 
 | Created | Updated | Code size | License |
 |:-------:|:-------:|:---------:|:-------:|
-| 2026-07 | 2026-07 |  < 80 K   |  LGPL3  |
+| 2026-07 | 2026-07 |  < 70 K   |  LGPL3  |
 
 Generates call graphs for any valid Lua 5.5 source code.
 
@@ -51,14 +51,15 @@ Save two files from [`deploy/`][deploy]:
 
     -- Martin, 2026-07
     ```
-  * [layout_callgraphs.sh][layout_script] calls `dot` tool to
-    layout graphs and save them as `.svg` images:
+  * [layout_callgraphs.sh][layout_script] calls `generate_callgraphs_lua`
+    and then calls `dot` tool to layout graphs and save them as `.svg` images:
 
     ```
     $ ./layout_callgraphs.sh
+
     For given Lua source file creates .svg callgraphs in <output_dir>/svg
 
-    Usage: lua_source_file output_dir
+    Usage: <lua_source_file> <output_dir>
 
     ```
 
