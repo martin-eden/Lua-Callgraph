@@ -3,13 +3,14 @@
 # For given Lua source file create .svg callgraphs in ./output/svg/
 
 # Author: Martin Eden
-# Last mod.: 2026-07-23
+# Last mod.: 2026-07-28
 
 print_help() {
   cat <<'EOF'
+
 For given Lua source file creates .svg callgraphs in <output_dir>/svg
 
-Usage: lua_source_file output_dir
+Usage: <lua_source_file> <output_dir>
 
 EOF
 }
@@ -24,7 +25,9 @@ set -e -u
 pathname="$1"
 base_dir="$2"
 
-rm -r -f "$base_dir"/*
+svg_dir="$base_dir"/svg
+
+rm -r -f "$svg_dir"
 
 #
 # Create callgraphs
@@ -38,10 +41,12 @@ lua generate_callgraphs_lua.lua "$pathname" "$base_dir"
 #
 # Create "$base_dir/svg" and call GraphViz to convert data
 #
-dot_dir="$base_dir"/dot
-svg_dir="$base_dir"/svg
+
+echo "( Creating .svg's"
 
 mkdir "$svg_dir"
+
+dot_dir="$base_dir"/dot
 
 for pathname in "$dot_dir"/*; do
   dot_file_name="$(basename $pathname)"
@@ -50,5 +55,8 @@ for pathname in "$dot_dir"/*; do
   dot -Tsvg "$pathname" -o "$svg_dir/$svg_file_name"
 done
 
+echo ')'
+
 # 2026-07-17
 # 2026-07-23
+# 2026-07-28
