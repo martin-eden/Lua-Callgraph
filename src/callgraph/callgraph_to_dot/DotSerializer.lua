@@ -23,55 +23,7 @@
 ]]
 
 -- Imports:
-local Writer = request('DotSerializer.Writer')
-local Syntels = request('DotSerializer.Syntels')
-local LinksWriter = request('DotSerializer.LinksWriter')
-
-local write_label
-do
-  local label_kw = Syntels.kw_label
-  local assign = Syntels.assign
-  write_label =
-    function(label)
-      Writer.start_attr()
-      Writer.write_cont(label_kw)
-      Writer.write_cont(assign)
-      Writer.write_cont(label)
-      Writer.end_attr()
-    end
-end
-
-local quote
-do
-  local quote_char = Syntels.quote
-  quote =
-    function(str)
-      return quote_char .. str .. quote_char
-    end
-end
-
-local start_graph
-do
-  local strict = Syntels.kw_strict
-  local digraph = Syntels.kw_digraph
-  local start_graph_str = Syntels.start_graph
-  start_graph =
-    function(graph_name)
-      Writer.write_cont(strict)
-      Writer.write_cont(digraph)
-      Writer.write_final(quote(graph_name))
-      Writer.write_final(start_graph_str)
-    end
-end
-
-local end_graph
-do
-  local end_graph_str = Syntels.end_graph
-  end_graph =
-    function()
-      Writer.write_final(end_graph_str)
-    end
-end
+local Writer = request('mechs.Writer')
 
 local init_get_node_name
 local get_node_name
@@ -83,7 +35,7 @@ do
     init_get_node_name =
       function(max_index)
         node_name_format =
-          quote('%0' .. int_to_str(get_num_digits(max_index)) .. 'd')
+          '%0' .. int_to_str(get_num_digits(max_index)) .. 'd'
       end
   end
   do
@@ -97,10 +49,7 @@ end
 
 local write_node =
   function(index, label)
-    Writer.start_statement()
-    Writer.write_cont(get_node_name(index))
-    write_label(quote(label))
-    Writer.end_statement()
+    Writer.write_node(get_node_name(index), label)
   end
 
 local write_links
@@ -112,7 +61,7 @@ do
       for _, next_one_index in ipairs(NextOnes) do
         add_to_list(NextOneNames, get_node_name(next_one_index))
       end
-      LinksWriter.write_links(get_node_name(index), NextOneNames)
+      Writer.write_links(get_node_name(index), NextOneNames)
     end
 end
 
@@ -122,18 +71,17 @@ Methods =
     create =
       function(num_instructions, OutputStream)
         init_get_node_name(num_instructions)
-
         Writer.init(OutputStream)
-        LinksWriter.init(Writer)
 
         return Methods
       end,
 
-    start_graph = start_graph,
-    end_graph = end_graph,
+    write_empty_line = Writer.write_empty_line,
+    start_graph = Writer.start_graph,
+    end_graph = Writer.end_graph,
     write_node = write_node,
     write_links = write_links,
-    done_write_links = LinksWriter.done_write_links,
+    done_write_links = Writer.done_write_links,
   }
 
 -- Export:

@@ -6,7 +6,7 @@
 ]]
 
 -- Imports:
-local Ascii = request('Ascii')
+local Ascii = request('^.^.concepts.Ascii')
 
 local Syntels =
   {

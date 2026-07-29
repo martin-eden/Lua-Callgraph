@@ -2,11 +2,11 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-28
+  Last mod.: 2026-07-29
 ]]
 
 --[[
-  Main function is WriteLinks() and it's called with arguments like
+  Main function is write_links() and it's called with arguments like
 
     '11' { '12' }
     '12' { '13' }
@@ -21,7 +21,7 @@
 ]]
 
 -- Imports:
-local Syntels = request('Syntels')
+local Syntels = request('^.concepts.Syntels')
 
 -- Set in init()
 local Writer
@@ -34,7 +34,7 @@ do
     function(DestNames)
       Writer.write_cont(start_graph)
       for _, dest_name in ipairs(DestNames) do
-        Writer.write_cont(dest_name)
+        Writer.write_cont(Writer.quote(dest_name))
       end
       Writer.write(end_graph)
       Writer.end_statement()
@@ -72,10 +72,11 @@ local queue_flush =
 
 local write_links =
   function(source_name, DestNames)
+    source_name = Writer.quote(source_name)
     if (#DestNames == 0) then
       queue_flush()
     elseif (#DestNames == 1) then
-      local dest_name = DestNames[1]
+      local dest_name = Writer.quote(DestNames[1])
 
       if (source_name == Queue[2]) then
         queue_add(dest_name)

@@ -1,18 +1,18 @@
--- Named space sequences for .dot format encoding
+-- Named available space characters for .dot format
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-27
+  Last mod.: 2026-07-29
 ]]
 
 -- Imports:
-local Ascii = request('Ascii')
+local Ascii = request('^.^.concepts.Ascii')
 
 local Spaces =
   {
     space = Ascii.space,
+    tab = Ascii.tab,
     newline = Ascii.newline,
-    indent = Ascii.space .. Ascii.space,
   }
 
 -- Export:
@@ -20,4 +20,5 @@ return Spaces
 
 --[[
   2026-07-27
+  2026-07-29
 ]]

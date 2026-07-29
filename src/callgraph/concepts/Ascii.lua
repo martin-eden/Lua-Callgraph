@@ -8,6 +8,7 @@
 local Ascii =
   {
     space = ' ',
+    tab = '\009',
     newline = '\010',
 
     quote = '"',
