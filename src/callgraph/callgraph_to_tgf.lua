@@ -36,6 +36,11 @@ do
       end
   end
 
+  local write_empty_line =
+    function()
+      write_rec({ })
+    end
+
   local write_label =
     function(name, label)
       write_rec({ name, label })
@@ -46,9 +51,7 @@ do
     local parts_delim = Ascii.number
     write_sections_delimiter =
       function()
-        write_rec({ })
         write_rec({ parts_delim })
-        write_rec({ })
       end
   end
 
@@ -90,20 +93,22 @@ do
         write_label(get_node_name(instruction_index), Instruction.label)
       end
 
+      write_empty_line()
       write_sections_delimiter()
+      write_empty_line()
 
       for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
         local src_name = get_node_name(src_instruction_index)
         local NextOnes = Instruction.NextOnes
         local is_forking_node = (#NextOnes > 1)
 
-        if is_forking_node then write_rec({ }) end
+        if is_forking_node then write_empty_line() end
 
         for _, dest_instruction_index in ipairs(NextOnes) do
           write_link(src_name, get_node_name(dest_instruction_index))
         end
 
-        if is_forking_node then write_rec({ }) end
+        if is_forking_node then write_empty_line() end
       end
     end
 end
