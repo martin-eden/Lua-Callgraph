@@ -1472,9 +1472,9 @@ _G.package.preload['callgraph.get_next_ones'] =
       local SkippersAndBackwardJumpers_Map
       do
         local Terminators
+        local Skippers
         local Jumpers
         local ForwardJumpers
-        local Skippers
         local SkippersAndForwardJumpers
         local SkippersAndBackwardJumpers
         do
@@ -1485,8 +1485,6 @@ _G.package.preload['callgraph.get_next_ones'] =
               FlowOpcodes.return_item,
               FlowOpcodes.return_sequence,
             }
-          Jumpers = { FlowOpcodes.jump }
-          ForwardJumpers = { FlowOpcodes.check_generic_loop }
           Skippers =
             {
               FlowOpcodes.equal_reg,
@@ -1502,6 +1500,8 @@ _G.package.preload['callgraph.get_next_ones'] =
               FlowOpcodes.if_neq_then_skip,
               FlowOpcodes.if_neq_then_skip_else_set,
             }
+          Jumpers = { FlowOpcodes.jump }
+          ForwardJumpers = { FlowOpcodes.check_generic_loop }
           SkippersAndForwardJumpers = { FlowOpcodes.check_numeric_loop }
           SkippersAndBackwardJumpers =
             {
@@ -1511,15 +1511,23 @@ _G.package.preload['callgraph.get_next_ones'] =
         end
         local map_values = request('!.table.map_values')
         Terminators_Map = map_values(Terminators)
+        Skippers_Map = map_values(Skippers)
         Jumpers_Map = map_values(Jumpers)
         ForwardJumpers_Map = map_values(ForwardJumpers)
-        Skippers_Map = map_values(Skippers)
         SkippersAndForwardJumpers_Map =
           map_values(SkippersAndForwardJumpers)
         SkippersAndBackwardJumpers_Map =
           map_values(SkippersAndBackwardJumpers)
       end
       local add_to_list = request('!.concepts.list.add_item')
+      local jump_offset_is_signed
+      local unused_op_in_jump
+      do
+        local is_ancient_lua =
+          (_G._VERSION ~= 'Lua 5.4') and (_G._VERSION ~= 'Lua 5.5')
+        jump_offset_is_signed = is_ancient_lua
+        unused_op_in_jump = is_ancient_lua
+      end
       get_next_ones =
         function(instruction_index, Instruction)
           local NextOnes = {}
@@ -1527,21 +1535,30 @@ _G.package.preload['callgraph.get_next_ones'] =
           local next_instruction_index = instruction_index + 1
           if Terminators_Map[opcode] then
             ;
+          elseif Skippers_Map[opcode] then
+            add_to_list(NextOnes, next_instruction_index)
+            add_to_list(NextOnes, next_instruction_index + 1)
           elseif Jumpers_Map[opcode] then
-            local jump_offset = tonumber(Instruction[2])
+            local jump_offset
+            if unused_op_in_jump then
+              jump_offset = Instruction[3]
+            else
+              jump_offset = Instruction[2]
+            end
+            jump_offset = tonumber(jump_offset)
             add_to_list(NextOnes, next_instruction_index + jump_offset)
           elseif ForwardJumpers_Map[opcode] then
             local jump_offset = tonumber(Instruction[3])
             add_to_list(NextOnes, next_instruction_index + jump_offset)
-          elseif Skippers_Map[opcode] then
-            add_to_list(NextOnes, next_instruction_index)
-            add_to_list(NextOnes, next_instruction_index + 1)
           elseif SkippersAndForwardJumpers_Map[opcode] then
             local jump_offset = tonumber(Instruction[3])
             add_to_list(NextOnes, next_instruction_index)
             add_to_list(NextOnes, next_instruction_index + jump_offset)
           elseif SkippersAndBackwardJumpers_Map[opcode] then
             local jump_offset = tonumber(Instruction[3])
+            if jump_offset_is_signed then
+              jump_offset = -jump_offset
+            end
             add_to_list(NextOnes, next_instruction_index - jump_offset)
             add_to_list(NextOnes, next_instruction_index)
           else
@@ -1570,6 +1587,10 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
             )
           end
       end
+      local write_empty_line =
+        function()
+          write_rec({})
+        end
       local write_label =
         function(name, label)
           write_rec({ name, label })
@@ -1579,9 +1600,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
         local parts_delim = Ascii.number
         write_sections_delimiter =
           function()
-            write_rec({})
             write_rec({ parts_delim })
-            write_rec({})
           end
       end
       local write_link =
@@ -1620,7 +1639,9 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
               get_node_name(instruction_index), Instruction.label
             )
           end
+          write_empty_line()
           write_sections_delimiter()
+          write_empty_line()
           for
             src_instruction_index, Instruction in
               ipairs(InstructionsGraph)
@@ -1629,7 +1650,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
             local NextOnes = Instruction.NextOnes
             local is_forking_node = (#NextOnes > 1)
             if is_forking_node then
-              write_rec({})
+              write_empty_line()
             end
             for _, dest_instruction_index in ipairs(NextOnes) do
               write_link(
@@ -1637,7 +1658,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
               )
             end
             if is_forking_node then
-              write_rec({})
+              write_empty_line()
             end
           end
         end
