@@ -4,9 +4,9 @@
 
 | Created | Updated | Code size | License |
 |:-------:|:-------:|:---------:|:-------:|
-| 2026-07 | 2026-07 |  < 70 K   |  LGPL3  |
+| 2026-07 | 2026-07 |  < 80 K   |  LGPL3  |
 
-Generates call graphs for any valid Lua 5.5 source code.
+Generates control flow graphs for any valid Lua (5.3 5.4 5.5) source code.
 
 Graphs are generated in two formats: `.tgf` (trivial graph format)
 and in `.dot` (graph format for [`Graphviz`][Graphviz] package)
@@ -31,7 +31,7 @@ Repository contains
 ## Requirements
 
   * Linux
-  * Lua 5.5 (not tested yet on 5.3 and 5.4)
+  * Lua 5.5 (or 5.3 or 5.4. Earlier versions are out of scope)
   * `graphviz` package for `dot` program
 
 
@@ -75,6 +75,38 @@ Modify files in [`src/`][src].
   * Modify `package.path` in [`builder/create_deploy.lua`][create_deploy]
     so that it finds your cloned `workshop`
   * Run [`builder/rebuild.sh`][rebuild]
+
+
+## Notes
+
+  * There can be orphaned VM instructions in graphs. They are present
+    in `luac -l` listing we are using. We're not going to eliminate them,
+    our scope is show what is present, not generating nice graphs.
+
+  * "Callgraph" name is a bit misleading
+
+    We are making callgraph for VM instructions. On higher level
+    it's called "flowchart".
+
+  * It works for compiled and stripped Lua bytecode
+
+    You don't need original sources.
+
+  * Further functionality extensions are not planned
+
+    Someone may think that adding coloring and shaping features
+    in `.dot` files is improvement. We don't agree.
+
+    If you want nice graph -- load `.tgf` into `yEd`. Apply one of it's
+    layouts. Do shaping and coloring there as you please. Export to `.svg`.
+
+  * Basically each function is "closure" and stored in separate file
+
+    Building one graph for all closures is possible (and interesting)
+    but result will be above my comprehension.
+
+    Try tool on `builder/reformat_lua`. It will create over 500 graphs.
+    Imagine them all merged into one graph. Not practical.
 
 
 ## See also
