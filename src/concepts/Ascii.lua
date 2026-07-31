@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-29
+  Last mod.: 2026-07-31
 ]]
 
 local Ascii =
@@ -15,6 +15,9 @@ local Ascii =
     semicol = ';',
     equal = '=',
     number = '#',
+
+    slash = '/',
+    dot = '.',
 
     opening_brace = '{',
     closing_brace = '}',
