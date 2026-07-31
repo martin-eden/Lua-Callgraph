@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-29
+  Last mod.: 2026-07-31
 ]]
 
 --[[
@@ -17,7 +17,7 @@
 ]]
 
 -- Imports:
-local Ascii = request('concepts.Ascii')
+local Ascii = request('^.concepts.Ascii')
 
 local callgraph_to_tgf
 do

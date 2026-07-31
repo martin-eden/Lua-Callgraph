@@ -2,11 +2,11 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-27
+  Last mod.: 2026-07-31
 ]]
 
 -- Imports:
-local Ascii = request('^.^.concepts.Ascii')
+local Ascii = request('^.^.^.concepts.Ascii')
 
 local Syntels =
   {
