@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-28
+  Last mod.: 2026-07-31
 ]]
 
 require('workshop.base')
@@ -151,21 +151,15 @@ do
 
   NamesGiver:SetNumItems(#Chunks)
 
-  local tgf_file_name_format = NamesGiver:GetTgfPathnameFormat()
-  local dot_graph_name_format = NamesGiver:GetDotGraphnameFormat()
-  local dot_file_name_format = NamesGiver:GetDotPathnameFormat()
-
-  local str_format = string.format
-
   for chunk_index, Chunk in ipairs(Chunks) do
     local Callgraph = get_callgraph(Chunk)
     do
-      local file_name = str_format(tgf_file_name_format, chunk_index)
+      local file_name = NamesGiver:GetTgfPathname(chunk_index)
       export_to_tgf(Callgraph, file_name)
     end
     do
-      local graph_name = str_format(dot_graph_name_format, chunk_index)
-      local file_name = str_format(dot_file_name_format, chunk_index)
+      local graph_name = NamesGiver:GetDotGraphname(chunk_index)
+      local file_name = NamesGiver:GetDotPathname(chunk_index)
       export_to_dot(Callgraph, graph_name, file_name)
     end
   end
