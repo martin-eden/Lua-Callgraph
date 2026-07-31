@@ -1,6 +1,7 @@
 _G.package.preload['generate_callgraphs_lua'] =
   function(...)
     require('workshop.base')
+    local Ascii = request('concepts.Ascii')
     local get_chunks
     do
       local file_to_str = request('!.convert.file_to_str')
@@ -22,7 +23,7 @@ _G.package.preload['generate_callgraphs_lua'] =
     end
     local get_callgraph
     do
-      local space = ' '
+      local space = Ascii.space
       local list_to_str = request('!.concepts.list.to_string')
       local get_next_ones = request('callgraph.get_next_ones')
       local add_to_list = request('!.concepts.list.add_item')
@@ -41,35 +42,34 @@ _G.package.preload['generate_callgraphs_lua'] =
         end
     end
     local export_to_tgf
-    do
-      local OutputFileStream =
-        request('!.concepts.StreamIo.Output.File')
-      local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-      export_to_tgf =
-        function(Callgraph, file_name)
-          local OutputStream = new(OutputFileStream)
-          OutputStream:Open(file_name)
-          callgraph_to_tgf(Callgraph, OutputStream)
-          OutputStream:Close()
-        end
-    end
     local export_to_dot
     do
       local OutputFileStream =
         request('!.concepts.StreamIo.Output.File')
-      local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-      export_to_dot =
-        function(Callgraph, graph_name, file_name)
-          local OutputStream = new(OutputFileStream)
-          OutputStream:Open(file_name)
-          callgraph_to_dot(Callgraph, graph_name, OutputStream)
-          OutputStream:Close()
-        end
+      do
+        local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+        export_to_tgf =
+          function(Callgraph, file_name)
+            local OutputStream = new(OutputFileStream)
+            OutputStream:Open(file_name)
+            callgraph_to_tgf(Callgraph, OutputStream)
+            OutputStream:Close()
+          end
+      end
+      do
+        local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+        export_to_dot =
+          function(Callgraph, graph_name, file_name)
+            local OutputStream = new(OutputFileStream)
+            OutputStream:Open(file_name)
+            callgraph_to_dot(Callgraph, graph_name, OutputStream)
+            OutputStream:Close()
+          end
+      end
     end
     local usage_text =
       [[
-
-Creates call graphs for Lua code.
+Creates VM instruction call graphs for Lua code
 
 Usage: <lua_file_name> <output_dir>
 
@@ -77,53 +77,64 @@ Usage: <lua_file_name> <output_dir>
 ]]
     local Config =
       { source_code_path_name = arg[1], output_dir_name = arg[2] }
+    local console_write =
+      function(str)
+        io.stdout:write(str)
+      end
+    local console_print
     do
-      local source_code_path_name = Config.source_code_path_name
-      local output_dir_name = Config.output_dir_name
-      if not (source_code_path_name and output_dir_name) then
-        io.stdout:write(usage_text)
-        return
-      end
-      local newline = '\010'
-      io.stdout:write('( Generating callgraphs', newline)
-      local NamesGiver = request('NamesGiver.Interface')
+      local newline = Ascii.newline
+      console_print =
+        function(str)
+          console_write(str)
+          console_write(newline)
+        end
+    end
+    do
+      local NamesGiver
+      NamesGiver = request('NamesGiver.Interface')
       NamesGiver = NamesGiver.create()
-      NamesGiver:SetSourceName(source_code_path_name)
-      NamesGiver:SetBaseDir(output_dir_name)
-      local get_padded_number_format =
-        request('NamesGiver.get_padded_number_format')
+      local Chunks
       do
-        local remove_dir = request('!.file_system.directory.remove')
-        local create_dir = request('!.file_system.directory.create')
-        local tgf_dir = NamesGiver:GetTgfDir()
-        remove_dir(tgf_dir)
-        create_dir(tgf_dir)
-        local dot_dir = NamesGiver:GetDotDir()
-        remove_dir(dot_dir)
-        create_dir(dot_dir)
+        local source_code_path_name = Config.source_code_path_name
+        local output_dir_name = Config.output_dir_name
+        if not (source_code_path_name and output_dir_name) then
+          console_write(usage_text)
+          return
+        end
+        console_print('( Generating callgraphs')
+        NamesGiver:SetSourceName(source_code_path_name)
+        NamesGiver:SetOutputDir(output_dir_name)
+        do
+          local remove_dir = request('!.file_system.directory.remove')
+          local create_dir = request('!.file_system.directory.create')
+          do
+            local tgf_dir = NamesGiver:GetTgfDir()
+            remove_dir(tgf_dir)
+            create_dir(tgf_dir)
+          end
+          do
+            local dot_dir = NamesGiver:GetDotDir()
+            remove_dir(dot_dir)
+            create_dir(dot_dir)
+          end
+        end
+        Chunks = get_chunks(source_code_path_name)
       end
-      local Chunks = get_chunks(source_code_path_name)
       NamesGiver:SetNumItems(#Chunks)
-      local tgf_file_name_format = NamesGiver:GetTgfPathnameFormat()
-      local dot_graph_name_format = NamesGiver:GetDotGraphnameFormat()
-      local dot_file_name_format = NamesGiver:GetDotPathnameFormat()
-      local str_format = string.format
       for chunk_index, Chunk in ipairs(Chunks) do
         local Callgraph = get_callgraph(Chunk)
         do
-          local file_name =
-            str_format(tgf_file_name_format, chunk_index)
+          local file_name = NamesGiver:GetTgfPathname(chunk_index)
           export_to_tgf(Callgraph, file_name)
         end
         do
-          local graph_name =
-            str_format(dot_graph_name_format, chunk_index)
-          local file_name =
-            str_format(dot_file_name_format, chunk_index)
+          local graph_name = NamesGiver:GetDotGraphname(chunk_index)
+          local file_name = NamesGiver:GetDotPathname(chunk_index)
           export_to_dot(Callgraph, graph_name, file_name)
         end
       end
-      io.stdout:write(')', newline)
+      console_print(')')
     end
   end
 _G.package.preload['workshop.base'] =
@@ -852,6 +863,47 @@ _G.package.preload['workshop.convert.file_from_str'] =
       end
     return save_str_to_file
   end
+_G.package.preload['workshop.concepts.PaddedIndex'] =
+  function(...)
+    local is_natural = request('!.number.is_natural')
+    local get_max_index =
+      function(Me)
+        return Me[1]
+      end
+    local get_format =
+      function(Me)
+        return Me[2]
+      end
+    local to_string =
+      function(Me, index)
+        assert(is_natural(index))
+        assert(index <= get_max_index(Me))
+        local str_format = string.format
+        return str_format(get_format(Me), index)
+      end
+    local Interface
+    Interface =
+      {
+        ToString = to_string,
+        create =
+          function(max_index)
+            assert(is_natural(max_index))
+            local zeroes_padding_format
+            do
+              local get_num_dec_digits =
+                request('!.number.get_num_dec_digits')
+              local int_to_str = tostring
+              local num_digits = get_num_dec_digits(max_index)
+              zeroes_padding_format =
+                '%0' .. int_to_str(num_digits) .. 'd'
+            end
+            local create_instance = request('!.table.create_instance')
+            local Core = { max_index, zeroes_padding_format }
+            return create_instance(Core, Interface)
+          end,
+      }
+    return Interface
+  end
 _G.package.preload['workshop.concepts.lua.NumberTypeNames'] =
   function(...)
     local NumberTypeNames = { 'integer', 'float' }
@@ -1456,9 +1508,10 @@ _G.package.preload['callgraph.get_next_ones'] =
   end
 _G.package.preload['callgraph.callgraph_to_tgf'] =
   function(...)
-    local Ascii = request('concepts.Ascii')
+    local Ascii = request('^.concepts.Ascii')
     local callgraph_to_tgf
     do
+      local IndexSerializer = request('!.concepts.PaddedIndex')
       local OutputStream
       local write_rec
       do
@@ -1492,31 +1545,14 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
         function(src_name, dest_name)
           write_rec({ src_name, dest_name })
         end
-      local init_get_node_name
-      local get_node_name
-      do
-        local node_name_format
-        do
-          local get_num_digits = request('!.number.get_num_dec_digits')
-          local int_to_str = tostring
-          init_get_node_name =
-            function(num_instructions)
-              local num_digits = get_num_digits(num_instructions)
-              node_name_format = '%0' .. int_to_str(num_digits) .. 'd'
-            end
+      local get_node_name =
+        function(index)
+          return IndexSerializer:ToString(index)
         end
-        do
-          local str_format = string.format
-          get_node_name =
-            function(index)
-              return str_format(node_name_format, index)
-            end
-        end
-      end
       callgraph_to_tgf =
         function(InstructionsGraph, Arg_OutputStream)
+          IndexSerializer = IndexSerializer.create(#InstructionsGraph)
           OutputStream = Arg_OutputStream
-          init_get_node_name(#InstructionsGraph)
           for
             instruction_index, Instruction in ipairs(InstructionsGraph)
           do
@@ -1712,24 +1748,6 @@ _G.package.preload['callgraph.vm_2020.get_next_ones'] =
     end
     return get_next_ones
   end
-_G.package.preload['callgraph.concepts.Ascii'] =
-  function(...)
-    local Ascii =
-      {
-        space = ' ',
-        tab = '\009',
-        newline = '\010',
-        quote = '"',
-        semicol = ';',
-        equal = '=',
-        number = '#',
-        opening_brace = '{',
-        closing_brace = '}',
-        opening_bracket = '[',
-        closing_bracket = ']',
-      }
-    return Ascii
-  end
 _G.package.preload['callgraph.vm_2015.FlowOpcodes'] =
   function(...)
     local FlowOpcodes =
@@ -1794,28 +1812,24 @@ _G.package.preload['callgraph.vm_2015.get_next_ones'] =
   end
 _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
   function(...)
-    local Writer = request('mechs.Writer')
-    local init_get_node_name
-    local get_node_name
+    local Methods
+    local IndexSerializer
+    local Writer
+    local create
     do
-      local node_name_format
-      do
-        local get_num_digits = request('!.number.get_num_dec_digits')
-        local int_to_str = tostring
-        init_get_node_name =
-          function(max_index)
-            node_name_format =
-              '%0' .. int_to_str(get_num_digits(max_index)) .. 'd'
-          end
-      end
-      do
-        local str_format = string.format
-        get_node_name =
-          function(index)
-            return str_format(node_name_format, index)
-          end
-      end
+      IndexSerializer = request('!.concepts.PaddedIndex')
+      Writer = request('mechs.Writer')
+      create =
+        function(num_instructions, OutputStream)
+          IndexSerializer = IndexSerializer.create(num_instructions)
+          Writer.init(OutputStream)
+          return Methods
+        end
     end
+    local get_node_name =
+      function(index)
+        return IndexSerializer:ToString(index)
+      end
     local write_node =
       function(index, label)
         Writer.write_node(get_node_name(index), label)
@@ -1832,15 +1846,9 @@ _G.package.preload['callgraph.callgraph_to_dot.DotSerializer'] =
           Writer.write_links(get_node_name(index), NextOneNames)
         end
     end
-    local Methods
     Methods =
       {
-        create =
-          function(num_instructions, OutputStream)
-            init_get_node_name(num_instructions)
-            Writer.init(OutputStream)
-            return Methods
-          end,
+        create = create,
         write_empty_line = Writer.write_empty_line,
         start_graph = Writer.start_graph,
         end_graph = Writer.end_graph,
@@ -2111,14 +2119,14 @@ _G.package.preload[
   end
 _G.package.preload['callgraph.callgraph_to_dot.concepts.Spaces'] =
   function(...)
-    local Ascii = request('^.^.concepts.Ascii')
+    local Ascii = request('^.^.^.concepts.Ascii')
     local Spaces =
       { space = Ascii.space, tab = Ascii.tab, newline = Ascii.newline }
     return Spaces
   end
 _G.package.preload['callgraph.callgraph_to_dot.concepts.Syntels'] =
   function(...)
-    local Ascii = request('^.^.concepts.Ascii')
+    local Ascii = request('^.^.^.concepts.Ascii')
     local Syntels =
       {
         kw_strict = 'strict',
@@ -2134,6 +2142,26 @@ _G.package.preload['callgraph.callgraph_to_dot.concepts.Syntels'] =
         end_attr = Ascii.closing_bracket,
       }
     return Syntels
+  end
+_G.package.preload['concepts.Ascii'] =
+  function(...)
+    local Ascii =
+      {
+        space = ' ',
+        tab = '\009',
+        newline = '\010',
+        quote = '"',
+        semicol = ';',
+        equal = '=',
+        number = '#',
+        slash = '/',
+        dot = '.',
+        opening_brace = '{',
+        closing_brace = '}',
+        opening_bracket = '[',
+        closing_bracket = ']',
+      }
+    return Ascii
   end
 _G.package.preload['NamesGiver.get_padded_number_format'] =
   function(...)
@@ -2172,82 +2200,109 @@ _G.package.preload['NamesGiver.get_base_dir'] =
 _G.package.preload['NamesGiver.Interface'] =
   function(...)
     local create_instance = request('!.table.create_instance')
-    local get_base_dir = request('get_base_dir')
-    local get_file_name = request('get_file_name')
-    local get_padded_number_format = request('get_padded_number_format')
-    local str_tgf = 'tgf'
-    local str_dot = 'dot'
-    local slash = '/'
-    local dot = '.'
-    local DefaultCore = { '', '', 0 }
+    local set_output_dir
+    do
+      local get_base_dir = request('get_base_dir')
+      set_output_dir =
+        function(Me, output_dir_name)
+          Me[1] = get_base_dir(output_dir_name)
+        end
+    end
+    local get_output_dir =
+      function(Me)
+        return Me[1]
+      end
+    local set_source_name
+    do
+      local get_file_name = request('get_file_name')
+      set_source_name =
+        function(Me, source_file_name)
+          Me[2] = get_file_name(source_file_name)
+        end
+    end
+    local get_source_name =
+      function(Me)
+        return Me[2]
+      end
+    local set_num_items
+    do
+      local PaddedIndex = request('!.concepts.PaddedIndex')
+      set_num_items =
+        function(Me, num_items)
+          Me[3] = PaddedIndex.create(num_items)
+        end
+    end
+    local get_padded_index =
+      function(Me, index)
+        return Me[3]:ToString(index)
+      end
+    local get_tgf_dir
+    local get_dot_dir
+    local get_tgf_pathname
+    local get_dot_pathname
+    local get_dot_graphname
+    do
+      local str_tgf = 'tgf'
+      local str_dot = 'dot'
+      get_tgf_dir =
+        function(Me)
+          return get_output_dir(Me) .. str_tgf
+        end
+      get_dot_dir =
+        function(Me)
+          return get_output_dir(Me) .. str_dot
+        end
+      local slash
+      local dot
+      do
+        local Ascii = request('^.concepts.Ascii')
+        slash = Ascii.slash
+        dot = Ascii.dot
+      end
+      get_tgf_pathname =
+        function(Me, index)
+          return
+            get_tgf_dir(Me) ..
+            slash ..
+            get_source_name(Me) ..
+            dot ..
+            get_padded_index(Me, index) ..
+            dot ..
+            str_tgf
+        end
+      get_dot_pathname =
+        function(Me, index)
+          return
+            get_dot_dir(Me) ..
+            slash ..
+            get_source_name(Me) ..
+            dot ..
+            get_padded_index(Me, index) ..
+            dot ..
+            str_dot
+        end
+      get_dot_graphname =
+        function(Me, index)
+          return
+            get_source_name(Me) .. dot .. get_padded_index(Me, index)
+        end
+    end
     local Methods
     Methods =
       {
         create =
           function()
-            return create_instance(DefaultCore, Methods)
+            local Core = { [1] = false, [2] = false, [3] = false }
+            return create_instance(Core, Methods)
           end,
-        SetSourceName =
-          function(Me, source_file_name)
-            Me[1] = get_file_name(source_file_name)
-          end,
-        GetSourceName =
-          function(Me)
-            return Me[1]
-          end,
-        SetBaseDir =
-          function(Me, output_dir_name)
-            Me[2] = get_base_dir(output_dir_name)
-          end,
-        GetBaseDir =
-          function(Me)
-            return Me[2]
-          end,
-        SetNumItems =
-          function(Me, num_items)
-            Me[3] = num_items
-          end,
-        GetNumItems =
-          function(Me)
-            return Me[3]
-          end,
-        GetTgfDir =
-          function(Me)
-            return Me:GetBaseDir() .. str_tgf
-          end,
-        GetDotDir =
-          function(Me)
-            return Me:GetBaseDir() .. str_dot
-          end,
-        GetTgfPathnameFormat =
-          function(Me)
-            return
-              Me:GetTgfDir() ..
-              slash ..
-              Me:GetSourceName() ..
-              dot ..
-              get_padded_number_format(Me:GetNumItems()) ..
-              dot ..
-              str_tgf
-          end,
-        GetDotPathnameFormat =
-          function(Me)
-            return
-              Me:GetDotDir() ..
-              slash ..
-              Me:GetSourceName() ..
-              dot ..
-              get_padded_number_format(Me:GetNumItems()) ..
-              dot ..
-              str_dot
-          end,
-        GetDotGraphnameFormat =
-          function(Me)
-            return
-              Me:GetSourceName() ..
-              dot ..
-              get_padded_number_format(Me:GetNumItems())
-          end,
+        SetOutputDir = set_output_dir,
+        SetSourceName = set_source_name,
+        SetNumItems = set_num_items,
+        GetTgfDir = get_tgf_dir,
+        GetDotDir = get_dot_dir,
+        GetTgfPathname = get_tgf_pathname,
+        GetDotPathname = get_dot_pathname,
+        GetDotGraphname = get_dot_graphname,
       }
     return Methods
   end
