@@ -60,34 +60,18 @@ do
       write_rec({ src_name, dest_name })
     end
 
-  local init_get_node_name
-  local get_node_name
-  do
-    local node_name_format
+  local ZeroesPadder = request('!.concepts.PaddedIndex')
 
-    do
-      local get_num_digits = request('!.number.get_num_dec_digits')
-      local int_to_str = tostring
-      init_get_node_name =
-        function(num_instructions)
-          local num_digits = get_num_digits(num_instructions)
-          node_name_format = '%0' .. int_to_str(num_digits) .. 'd'
-        end
+  local get_node_name =
+    function(index)
+      return ZeroesPadder:ToString(index)
     end
-    do
-      local str_format = string.format
-      get_node_name =
-        function(index)
-          return str_format(node_name_format, index)
-        end
-    end
-  end
 
   callgraph_to_tgf =
     function(InstructionsGraph, Arg_OutputStream)
       OutputStream = Arg_OutputStream
 
-      init_get_node_name(#InstructionsGraph)
+      ZeroesPadder = ZeroesPadder.create(#InstructionsGraph)
 
       for instruction_index, Instruction in ipairs(InstructionsGraph) do
         write_label(get_node_name(instruction_index), Instruction.label)
