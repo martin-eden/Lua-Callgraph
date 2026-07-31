@@ -14,8 +14,13 @@ local get_padded_number_format = request('get_padded_number_format')
 local str_tgf = 'tgf'
 local str_dot = 'dot'
 
-local slash = '/'
-local dot = '.'
+local slash
+local dot
+do
+  local Ascii = request('^.concepts.Ascii')
+  slash = Ascii.slash
+  dot = Ascii.dot
+end
 
 --[[
   Core storage format:
