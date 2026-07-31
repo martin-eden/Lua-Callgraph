@@ -10,11 +10,10 @@ local create_instance = request('!.table.create_instance')
 --[[
   Core storage format:
 
-    1 [s] output_dir_name
-    2 [s] source_code_path_name
-    3 [i] num_items
+    1 [s] output directory
+    2 [s] source code pathname
+    3 [t] PaddedIndex which depends from number of items
 ]]
-local DefaultCore = { [1] = '', [2] = '', [3] = 0 }
 
 local set_output_dir
 do
@@ -25,7 +24,7 @@ do
     end
 end
 
-local get_base_dir = function(Me) return Me[1] end
+local get_output_dir = function(Me) return Me[1] end
 
 local set_source_name
 do
@@ -38,12 +37,19 @@ end
 
 local get_source_name = function(Me) return Me[2] end
 
-local set_num_items =
-  function(Me, num_items)
-    Me[3] = num_items
-  end
+local set_num_items
+do
+  local PaddedIndex = request('!.concepts.PaddedIndex')
+  set_num_items =
+    function(Me, num_items)
+      Me[3] = PaddedIndex.create(num_items)
+    end
+end
 
-local get_num_items = function(Me) return Me[3] end
+local get_padded_index =
+  function(Me, index)
+    return Me[3]:ToString(index)
+  end
 
 local get_tgf_dir
 local get_dot_dir
@@ -56,12 +62,12 @@ do
 
   get_tgf_dir =
     function(Me)
-      return get_base_dir(Me) .. str_tgf
+      return get_output_dir(Me) .. str_tgf
     end
 
   get_dot_dir =
     function(Me)
-      return get_base_dir(Me) .. str_dot
+      return get_output_dir(Me) .. str_dot
     end
 
   local slash
@@ -72,60 +78,37 @@ do
     dot = Ascii.dot
   end
 
-  do
-    local get_padded_number_format = request('get_padded_number_format')
-    local str_format = string.format
-
-    do
-      local get_tgf_pathname_format =
-        function(Me)
-          return
-            get_tgf_dir(Me) ..
-            slash ..
-            get_source_name(Me) ..
-            dot ..
-            get_padded_number_format(get_num_items(Me)) ..
-            dot ..
-            str_tgf
-        end
-      get_tgf_pathname =
-        function(Me, index)
-          return str_format(get_tgf_pathname_format(Me), index)
-        end
+  get_tgf_pathname =
+    function(Me, index)
+      return
+        get_tgf_dir(Me) ..
+        slash ..
+        get_source_name(Me) ..
+        dot ..
+        get_padded_index(Me, index) ..
+        dot ..
+        str_tgf
     end
 
-    do
-      local get_dot_pathname_format =
-        function(Me)
-          return
-            get_dot_dir(Me) ..
-            slash ..
-            get_source_name(Me) ..
-            dot ..
-            get_padded_number_format(get_num_items(Me)) ..
-            dot ..
-            str_dot
-        end
-      get_dot_pathname =
-        function(Me, index)
-          return str_format(get_dot_pathname_format(Me), index)
-        end
+  get_dot_pathname =
+    function(Me, index)
+      return
+        get_dot_dir(Me) ..
+        slash ..
+        get_source_name(Me) ..
+        dot ..
+        get_padded_index(Me, index) ..
+        dot ..
+        str_dot
     end
 
-    do
-      local get_dot_graphname_format =
-        function(Me)
-          return
-            get_source_name(Me) ..
-            dot ..
-            get_padded_number_format(get_num_items(Me))
-        end
-      get_dot_graphname =
-        function(Me, index)
-          return str_format(get_dot_graphname_format(Me), index)
-        end
+  get_dot_graphname =
+    function(Me, index)
+      return
+        get_source_name(Me) ..
+        dot ..
+        get_padded_index(Me, index)
     end
-  end
 end
 
 local Methods
@@ -133,10 +116,13 @@ Methods =
   {
     create =
       function()
-        return create_instance(DefaultCore, Methods)
+        -- Allocate data slots. Data setup is done via methods.
+        local Core = { [1] = false, [2] = false, [3] = false }
+
+        return create_instance(Core, Methods)
       end,
 
-    SetBaseDir = set_output_dir,
+    SetOutputDir = set_output_dir,
     SetSourceName = set_source_name,
     SetNumItems = set_num_items,
 

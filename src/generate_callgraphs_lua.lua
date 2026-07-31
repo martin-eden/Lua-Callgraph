@@ -145,7 +145,7 @@ do
     console_print('( Generating callgraphs')
 
     NamesGiver:SetSourceName(source_code_path_name)
-    NamesGiver:SetBaseDir(output_dir_name)
+    NamesGiver:SetOutputDir(output_dir_name)
 
     do
       local remove_dir = request('!.file_system.directory.remove')
