@@ -7,6 +7,8 @@
 
 require('workshop.base')
 
+local Ascii = request('concepts.Ascii')
+
 --[[
   Get parsed closure listings from source code file
 ]]
@@ -44,7 +46,7 @@ end
 ]]
 local get_callgraph
 do
-  local space = ' '
+  local space = Ascii.space
   local list_to_str = request('!.concepts.list.to_string')
   local get_next_ones = request('callgraph.get_next_ones')
   local add_to_list = request('!.concepts.list.add_item')
@@ -65,42 +67,37 @@ do
     end
 end
 
---[[
-  Export callgraph to .tgf file
-]]
 local export_to_tgf
-do
-  local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-  local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-  export_to_tgf =
-    function(Callgraph, file_name)
-      local OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-      callgraph_to_tgf(Callgraph, OutputStream)
-      OutputStream:Close()
-    end
-end
-
---[[
-  Export callgraph to .dot file
-]]
 local export_to_dot
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
-  local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-  export_to_dot =
-    function(Callgraph, graph_name, file_name)
-      local OutputStream = new(OutputFileStream)
-      OutputStream:Open(file_name)
-      callgraph_to_dot(Callgraph, graph_name, OutputStream)
-      OutputStream:Close()
-    end
+  do
+    local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+    -- Export callgraph to .tgf file
+    export_to_tgf =
+      function(Callgraph, file_name)
+        local OutputStream = new(OutputFileStream)
+        OutputStream:Open(file_name)
+        callgraph_to_tgf(Callgraph, OutputStream)
+        OutputStream:Close()
+      end
+  end
+  do
+    local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+    -- Export callgraph to .dot file
+    export_to_dot =
+      function(Callgraph, graph_name, file_name)
+        local OutputStream = new(OutputFileStream)
+        OutputStream:Open(file_name)
+        callgraph_to_dot(Callgraph, graph_name, OutputStream)
+        OutputStream:Close()
+      end
+  end
 end
 
 local usage_text =
 [[
-
-Creates call graphs for Lua code.
+Creates VM instruction call graphs for Lua code
 
 Usage: <lua_file_name> <output_dir>
 
@@ -113,41 +110,60 @@ local Config =
     output_dir_name = arg[2],
   }
 
+local console_write =
+  function(str)
+    io.stdout:write(str)
+  end
+
+local console_print
+do
+  local newline = Ascii.newline
+  console_print =
+    function(str)
+      console_write(str)
+      console_write(newline)
+    end
+end
+
 -- Main:
 do
-  local source_code_path_name = Config.source_code_path_name
-  local output_dir_name = Config.output_dir_name
-
-  if not (source_code_path_name and output_dir_name) then
-    io.stdout:write(usage_text)
-    return
-  end
-
-  local newline = '\010'
-
-  io.stdout:write('( Generating callgraphs', newline)
-
-  local NamesGiver = request('NamesGiver.Interface')
+  local NamesGiver
+  NamesGiver = request('NamesGiver.Interface')
   NamesGiver = NamesGiver.create()
-  NamesGiver:SetSourceName(source_code_path_name)
-  NamesGiver:SetBaseDir(output_dir_name)
 
-  local get_padded_number_format = request('NamesGiver.get_padded_number_format')
+  local Chunks
 
   do
-    local remove_dir = request('!.file_system.directory.remove')
-    local create_dir = request('!.file_system.directory.create')
+    local source_code_path_name = Config.source_code_path_name
+    local output_dir_name = Config.output_dir_name
 
-    local tgf_dir = NamesGiver:GetTgfDir()
-    remove_dir(tgf_dir)
-    create_dir(tgf_dir)
+    if not (source_code_path_name and output_dir_name) then
+      console_write(usage_text)
+      return
+    end
 
-    local dot_dir = NamesGiver:GetDotDir()
-    remove_dir(dot_dir)
-    create_dir(dot_dir)
+    console_print('( Generating callgraphs')
+
+    NamesGiver:SetSourceName(source_code_path_name)
+    NamesGiver:SetBaseDir(output_dir_name)
+
+    do
+      local remove_dir = request('!.file_system.directory.remove')
+      local create_dir = request('!.file_system.directory.create')
+      do
+        local tgf_dir = NamesGiver:GetTgfDir()
+        remove_dir(tgf_dir)
+        create_dir(tgf_dir)
+      end
+      do
+        local dot_dir = NamesGiver:GetDotDir()
+        remove_dir(dot_dir)
+        create_dir(dot_dir)
+      end
+    end
+
+    Chunks = get_chunks(source_code_path_name)
   end
-
-  local Chunks = get_chunks(source_code_path_name)
 
   NamesGiver:SetNumItems(#Chunks)
 
@@ -164,11 +180,12 @@ do
     end
   end
 
-  io.stdout:write(')', newline)
+  console_print(')')
 end
 
 --[[
   2026-07-15
   2026-07-17
   2026-07-23
+  2026-07-31
 ]]
