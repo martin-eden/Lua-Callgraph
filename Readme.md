@@ -44,8 +44,7 @@ Save two files from [`deploy/`][deploy]:
 
     ```
     $ lua generate_callgraphs_lua.lua
-
-    Creates call graphs for Lua code.
+    Creates VM instruction call graphs for Lua code
 
     Usage: <lua_file_name> <output_dir>
 
