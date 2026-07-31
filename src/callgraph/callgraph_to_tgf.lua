@@ -16,11 +16,11 @@
   We can't do much more for niceness.
 ]]
 
--- Imports:
 local Ascii = request('^.concepts.Ascii')
 
 local callgraph_to_tgf
 do
+  local IndexSerializer = request('!.concepts.PaddedIndex')
   local OutputStream
 
   local write_rec
@@ -60,18 +60,15 @@ do
       write_rec({ src_name, dest_name })
     end
 
-  local ZeroesPadder = request('!.concepts.PaddedIndex')
-
   local get_node_name =
     function(index)
-      return ZeroesPadder:ToString(index)
+      return IndexSerializer:ToString(index)
     end
 
   callgraph_to_tgf =
     function(InstructionsGraph, Arg_OutputStream)
+      IndexSerializer = IndexSerializer.create(#InstructionsGraph)
       OutputStream = Arg_OutputStream
-
-      ZeroesPadder = ZeroesPadder.create(#InstructionsGraph)
 
       for instruction_index, Instruction in ipairs(InstructionsGraph) do
         write_label(get_node_name(instruction_index), Instruction.label)

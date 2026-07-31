@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-28
+  Last mod.: 2026-08-01
 ]]
 
 --[[
@@ -22,30 +22,29 @@
   several edges. Also it merges chains into one .dot statement.
 ]]
 
--- Imports:
-local Writer = request('mechs.Writer')
+local Methods
 
-local init_get_node_name
-local get_node_name
+local IndexSerializer
+local Writer
+
+local create
 do
-  local node_name_format
-  do
-    local get_num_digits = request('!.number.get_num_dec_digits')
-    local int_to_str = tostring
-    init_get_node_name =
-      function(max_index)
-        node_name_format =
-          '%0' .. int_to_str(get_num_digits(max_index)) .. 'd'
-      end
-  end
-  do
-    local str_format = string.format
-    get_node_name =
-      function(index)
-        return str_format(node_name_format, index)
-      end
-  end
+  IndexSerializer = request('!.concepts.PaddedIndex')
+  Writer = request('mechs.Writer')
+
+  create =
+    function(num_instructions, OutputStream)
+      IndexSerializer = IndexSerializer.create(num_instructions)
+      Writer.init(OutputStream)
+
+      return Methods
+    end
 end
+
+local get_node_name =
+  function(index)
+    return IndexSerializer:ToString(index)
+  end
 
 local write_node =
   function(index, label)
@@ -65,16 +64,9 @@ do
     end
 end
 
-local Methods
 Methods =
   {
-    create =
-      function(num_instructions, OutputStream)
-        init_get_node_name(num_instructions)
-        Writer.init(OutputStream)
-
-        return Methods
-      end,
+    create = create,
 
     write_empty_line = Writer.write_empty_line,
     start_graph = Writer.start_graph,
