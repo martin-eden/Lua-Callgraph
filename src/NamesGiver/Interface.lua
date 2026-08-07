@@ -73,9 +73,9 @@ do
   local slash
   local dot
   do
-    local Ascii = request('^.concepts.Ascii')
-    slash = Ascii.slash
-    dot = Ascii.dot
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    slash = AsciiChars.slash
+    dot = AsciiChars.dot
   end
 
   get_tgf_pathname =

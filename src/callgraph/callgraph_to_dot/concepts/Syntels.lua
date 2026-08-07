@@ -6,7 +6,7 @@
 ]]
 
 -- Imports:
-local Ascii = request('^.^.^.concepts.Ascii')
+local AsciiChars = request('!.concepts.Ascii.Chars')
 
 local Syntels =
   {
@@ -16,15 +16,15 @@ local Syntels =
 
     arrow = '->',
 
-    quote = Ascii.quote,
-    assign = Ascii.equal,
-    end_statement = Ascii.semicol,
+    quote = AsciiChars.double_quote,
+    assign = AsciiChars.equals,
+    end_statement = AsciiChars.semicolon,
 
-    start_graph = Ascii.opening_brace,
-    end_graph = Ascii.closing_brace,
+    start_graph = AsciiChars.opening_brace,
+    end_graph = AsciiChars.closing_brace,
 
-    start_attr = Ascii.opening_bracket,
-    end_attr = Ascii.closing_bracket,
+    start_attr = AsciiChars.opening_bracket,
+    end_attr = AsciiChars.closing_bracket,
   }
 
 -- Export:

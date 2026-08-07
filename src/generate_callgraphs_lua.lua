@@ -2,12 +2,12 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-31
+  Last mod.: 2026-08-07
 ]]
 
 require('workshop.base')
 
-local Ascii = request('concepts.Ascii')
+local AsciiChars = request('!.concepts.Ascii.Chars')
 
 --[[
   Get parsed closure listings from source code file
@@ -46,7 +46,7 @@ end
 ]]
 local get_callgraph
 do
-  local space = Ascii.space
+  local space = AsciiChars.space
   local list_to_str = request('!.concepts.list.to_string')
   local get_next_ones = request('callgraph.get_next_ones')
   local add_to_list = request('!.concepts.list.add_item')
@@ -67,13 +67,15 @@ do
     end
 end
 
+-- Export callgraph to .tgf file
 local export_to_tgf
+-- Export callgraph to .dot file
 local export_to_dot
+
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
   do
     local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-    -- Export callgraph to .tgf file
     export_to_tgf =
       function(Callgraph, file_name)
         local OutputStream = new(OutputFileStream)
@@ -84,7 +86,6 @@ do
   end
   do
     local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-    -- Export callgraph to .dot file
     export_to_dot =
       function(Callgraph, graph_name, file_name)
         local OutputStream = new(OutputFileStream)
@@ -117,7 +118,7 @@ local console_write =
 
 local console_print
 do
-  local newline = Ascii.newline
+  local newline = AsciiChars.newline
   console_print =
     function(str)
       console_write(str)
@@ -125,7 +126,7 @@ do
     end
 end
 
--- Main:
+-- Main
 do
   local NamesGiver
   NamesGiver = request('NamesGiver.Interface')

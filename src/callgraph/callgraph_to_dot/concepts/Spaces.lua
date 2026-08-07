@@ -2,17 +2,17 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-31
+  Last mod.: 2026-08-07
 ]]
 
 -- Imports:
-local Ascii = request('^.^.^.concepts.Ascii')
+local AsciiChars = request('!.concepts.Ascii.Chars')
 
 local Spaces =
   {
-    space = Ascii.space,
-    tab = Ascii.tab,
-    newline = Ascii.newline,
+    space = AsciiChars.space,
+    tab = AsciiChars.tab,
+    newline = AsciiChars.newline,
   }
 
 -- Export:

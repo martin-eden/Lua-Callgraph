@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-31
+  Last mod.: 2026-08-07
 ]]
 
 --[[
@@ -16,7 +16,7 @@
   We can't do much more for niceness.
 ]]
 
-local Ascii = request('^.concepts.Ascii')
+local AsciiChars = request('!.concepts.Ascii.Chars')
 
 local callgraph_to_tgf
 do
@@ -25,8 +25,8 @@ do
 
   local write_rec
   do
-    local field_separator = Ascii.space
-    local record_separator = Ascii.newline
+    local field_separator = AsciiChars.space
+    local record_separator = AsciiChars.newline
     local list_to_str = request('!.concepts.list.to_string')
     write_rec =
       function(Rec)
@@ -48,7 +48,7 @@ do
 
   local write_sections_delimiter
   do
-    local parts_delim = Ascii.number
+    local parts_delim = AsciiChars.number_sign
     write_sections_delimiter =
       function()
         write_rec({ parts_delim })
