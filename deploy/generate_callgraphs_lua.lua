@@ -1,7 +1,7 @@
 _G.package.preload['generate_callgraphs_lua'] =
   function(...)
     require('workshop.base')
-    local Ascii = request('concepts.Ascii')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
     local get_chunks
     do
       local file_to_str = request('!.convert.file_to_str')
@@ -23,7 +23,7 @@ _G.package.preload['generate_callgraphs_lua'] =
     end
     local get_callgraph
     do
-      local space = Ascii.space
+      local space = AsciiChars.space
       local list_to_str = request('!.concepts.list.to_string')
       local get_next_ones = request('callgraph.get_next_ones')
       local add_to_list = request('!.concepts.list.add_item')
@@ -83,7 +83,7 @@ Usage: <lua_file_name> <output_dir>
       end
     local console_print
     do
-      local newline = Ascii.newline
+      local newline = AsciiChars.newline
       console_print =
         function(str)
           console_write(str)
@@ -1104,6 +1104,67 @@ _G.package.preload['workshop.concepts.words.to_string'] =
       end
     return to_string
   end
+_G.package.preload['workshop.concepts.Ascii.Chars'] =
+  function(...)
+    local Chars
+    do
+      local Codes = request('Codes')
+      local str_char = string.char
+      Chars = {}
+      for name, code in pairs(Codes) do
+        Chars[name] = str_char(code)
+      end
+    end
+    return Chars
+  end
+_G.package.preload['workshop.concepts.Ascii.Codes'] =
+  function(...)
+    local Codes =
+      {
+        bell = 7,
+        backspace = 8,
+        tab = 9,
+        newline = 10,
+        vertical_tab = 11,
+        form_feed = 12,
+        carriage_return = 13,
+        space = 32,
+        delete = 127,
+        plus = 43,
+        minus = 45,
+        asterisk = 42,
+        slash = 47,
+        less_than = 60,
+        equals = 61,
+        greater_than = 62,
+        dot = 46,
+        comma = 44,
+        colon = 58,
+        semicolon = 59,
+        single_quote = 39,
+        double_quote = 34,
+        backtick = 96,
+        backslash = 92,
+        number_sign = 35,
+        question_mark = 63,
+        bang = 33,
+        percent = 37,
+        ampersand = 38,
+        dollar_sign = 36,
+        at_sign = 64,
+        caret = 94,
+        underscore = 95,
+        pipe = 124,
+        tilde = 126,
+        opening_paren = 40,
+        closing_paren = 41,
+        opening_bracket = 91,
+        closing_bracket = 93,
+        opening_brace = 123,
+        closing_brace = 125,
+      }
+    return Codes
+  end
 _G.package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode'
 ] =
@@ -1508,15 +1569,15 @@ _G.package.preload['callgraph.get_next_ones'] =
   end
 _G.package.preload['callgraph.callgraph_to_tgf'] =
   function(...)
-    local Ascii = request('^.concepts.Ascii')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
     local callgraph_to_tgf
     do
       local IndexSerializer = request('!.concepts.PaddedIndex')
       local OutputStream
       local write_rec
       do
-        local field_separator = Ascii.space
-        local record_separator = Ascii.newline
+        local field_separator = AsciiChars.space
+        local record_separator = AsciiChars.newline
         local list_to_str = request('!.concepts.list.to_string')
         write_rec =
           function(Rec)
@@ -1535,7 +1596,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
         end
       local write_sections_delimiter
       do
-        local parts_delim = Ascii.number
+        local parts_delim = AsciiChars.number_sign
         write_sections_delimiter =
           function()
             write_rec({ parts_delim })
@@ -2119,49 +2180,33 @@ _G.package.preload[
   end
 _G.package.preload['callgraph.callgraph_to_dot.concepts.Spaces'] =
   function(...)
-    local Ascii = request('^.^.^.concepts.Ascii')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
     local Spaces =
-      { space = Ascii.space, tab = Ascii.tab, newline = Ascii.newline }
+      {
+        space = AsciiChars.space,
+        tab = AsciiChars.tab,
+        newline = AsciiChars.newline,
+      }
     return Spaces
   end
 _G.package.preload['callgraph.callgraph_to_dot.concepts.Syntels'] =
   function(...)
-    local Ascii = request('^.^.^.concepts.Ascii')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
     local Syntels =
       {
         kw_strict = 'strict',
         kw_digraph = 'digraph',
         kw_label = 'label',
         arrow = '->',
-        quote = Ascii.quote,
-        assign = Ascii.equal,
-        end_statement = Ascii.semicol,
-        start_graph = Ascii.opening_brace,
-        end_graph = Ascii.closing_brace,
-        start_attr = Ascii.opening_bracket,
-        end_attr = Ascii.closing_bracket,
+        quote = AsciiChars.double_quote,
+        assign = AsciiChars.equals,
+        end_statement = AsciiChars.semicolon,
+        start_graph = AsciiChars.opening_brace,
+        end_graph = AsciiChars.closing_brace,
+        start_attr = AsciiChars.opening_bracket,
+        end_attr = AsciiChars.closing_bracket,
       }
     return Syntels
-  end
-_G.package.preload['concepts.Ascii'] =
-  function(...)
-    local Ascii =
-      {
-        space = ' ',
-        tab = '\009',
-        newline = '\010',
-        quote = '"',
-        semicol = ';',
-        equal = '=',
-        number = '#',
-        slash = '/',
-        dot = '.',
-        opening_brace = '{',
-        closing_brace = '}',
-        opening_bracket = '[',
-        closing_bracket = ']',
-      }
-    return Ascii
   end
 _G.package.preload['NamesGiver.get_padded_number_format'] =
   function(...)
@@ -2255,9 +2300,9 @@ _G.package.preload['NamesGiver.Interface'] =
       local slash
       local dot
       do
-        local Ascii = request('^.concepts.Ascii')
-        slash = Ascii.slash
-        dot = Ascii.dot
+        local AsciiChars = request('!.concepts.Ascii.Chars')
+        slash = AsciiChars.slash
+        dot = AsciiChars.dot
       end
       get_tgf_pathname =
         function(Me, index)
