@@ -1065,7 +1065,9 @@ _G.package.preload['workshop.concepts.shell.quote.SpecialChars'] =
   end
 _G.package.preload['workshop.concepts.shell.quote.SpaceChars'] =
   function(...)
-    local SpaceChars = { '\009', '\010', ' ' }
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    local SpaceChars =
+      { AsciiChars.tab, AsciiChars.newline, AsciiChars.space }
     return SpaceChars
   end
 _G.package.preload['workshop.concepts.list.to_string'] =
