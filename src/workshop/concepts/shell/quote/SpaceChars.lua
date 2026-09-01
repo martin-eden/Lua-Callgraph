@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-08-07
+  Last mod.: 2026-08-13
 ]]
 
 --[[
@@ -22,17 +22,17 @@
   module.
 ]]
 
--- Imports:
-local AsciiChars = request('!.concepts.Ascii.Chars')
+local SpaceChars
+do
+  local Ascii = request('!.concepts.Ascii.Chars')
+  SpaceChars =
+    {
+      Ascii.tab,
+      Ascii.space,
+      Ascii.newline,
+    }
+end
 
-local SpaceChars =
-  {
-    AsciiChars.tab,
-    AsciiChars.newline,
-    AsciiChars.space,
-  }
-
--- Export:
 return SpaceChars
 
 --[[

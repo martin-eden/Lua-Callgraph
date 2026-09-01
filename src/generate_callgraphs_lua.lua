@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-08-07
+  Last mod.: 2026-09-01
 ]]
 
 require('workshop.base')
@@ -14,14 +14,17 @@ local AsciiChars = request('!.concepts.Ascii.Chars')
 ]]
 local get_chunks
 do
-  local file_to_str = request('!.convert.file_to_str')
-  local get_bytecode =
-    request('!.concepts.lua_bytecode_decompiler.bytecode_from_source')
-  local get_listing =
-    request('!.concepts.lua_bytecode_decompiler.listing_from_bytecode')
+  local get_bytecode_listing = request('!.programs.get_bytecode_listing')
+  local StringStream = request('!.concepts.StreamIo.Output.String')
+  local itness_from_str = request('!.convert.itness_from_str')
+
   get_chunks =
     function(source_code_path_name)
-      return get_listing(get_bytecode(file_to_str(source_code_path_name)))
+      local StringStream = new(StringStream)
+
+      get_bytecode_listing({ source_code_path_name }, StringStream)
+
+      return itness_from_str(StringStream:GetString())
     end
 end
 

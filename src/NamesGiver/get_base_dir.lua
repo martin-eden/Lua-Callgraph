@@ -2,11 +2,11 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-23
+  Last mod.: 2026-09-01
 ]]
 
 -- Imports:
-local add_dir_postfix = request('!.concepts.path_name.add_dir_postfix')
+local add_dir_postfix = request('!.concepts.path_name.add_separator')
 local normalize_pathname = request('!.concepts.path_name.normalize')
 
 local get_base_dir =
