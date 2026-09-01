@@ -2,9 +2,9 @@
 
 ## What
 
-| Created | Updated | Code size | License |
-|:-------:|:-------:|:---------:|:-------:|
-| 2026-07 | 2026-07 |  < 80 K   |  LGPL3  |
+| Created |  Updated   | Code size | License |
+|:-------:|:----------:|:---------:|:-------:|
+| 2026-07 | 2026-09-01 |  < 100 K  |  LGPL3  |
 
 Generates control flow graphs for any valid Lua (5.3 5.4 5.5) source code.
 
@@ -70,9 +70,9 @@ Modify files in [`src/`][src].
 ## Rebuilding
 
   * Clone [`workshop`][workshop] repo
-  * Checkout it near current date, `2026-07-24`
+  * Checkout it to date near "Updated" date from stats plate (at header of this Readme)
   * Modify `package.path` in [`builder/create_deploy.lua`][create_deploy]
-    so that it finds your cloned `workshop`
+    so it can find your cloned `workshop` repo
   * Run [`builder/rebuild.sh`][rebuild]
 
 
