@@ -4,7 +4,7 @@
 
 | Created |  Updated   | Code size | License |
 |:-------:|:----------:|:---------:|:-------:|
-| 2026-07 | 2026-09-01 |  < 100 K  |  LGPL3  |
+| 2026-07 | 2026-09-02 |   < 90 K  |  LGPL3  |
 
 Generates control flow graphs for any valid Lua (5.3 5.4 5.5) source code.
 
