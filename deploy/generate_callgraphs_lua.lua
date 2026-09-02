@@ -1,7 +1,135 @@
+_G.package.preload['NamesGiver'] =
+  function(...)
+    local pathname_from_str =
+      request('!.concepts.path_name.pathname_from_str')
+    local pathname_to_str =
+      request('!.concepts.path_name.pathname_to_str')
+    local list_to_str = request('!.concepts.list.to_string')
+    local get_source_name =
+      function(Me)
+        return Me[1]
+      end
+    local set_source_name
+    do
+      local get_name_from_path =
+        request('!.concepts.path_name.get_name')
+      set_source_name =
+        function(Me, pathname)
+          Me[1] = get_name_from_path(pathname_from_str(pathname))
+        end
+    end
+    local get_output_dir =
+      function(Me)
+        return pathname_to_str(Me[2])
+      end
+    local set_output_dir =
+      function(Me, output_dir_name)
+        Me[2] = pathname_from_str(output_dir_name)
+      end
+    local set_num_items
+    do
+      local PaddedIndex = request('!.concepts.PaddedIndex')
+      set_num_items =
+        function(Me, num_items)
+          Me[3] = PaddedIndex.create(num_items)
+        end
+    end
+    local represent_index =
+      function(Me, index)
+        return Me[3]:ToString(index)
+      end
+    local get_tgf_dir
+    local get_dot_dir
+    local get_tgf_pathname
+    local get_dot_pathname
+    local get_dot_graphname
+    do
+      local name_qualifier = request('!.concepts.Ascii.Chars').dot
+      local format_tgf = 'tgf'
+      local format_dot = 'dot'
+      get_tgf_dir =
+        function(Me)
+          return pathname_to_str({ get_output_dir(Me), format_tgf })
+        end
+      get_dot_dir =
+        function(Me)
+          return pathname_to_str({ get_output_dir(Me), format_dot })
+        end
+      local get_closure_name =
+        function(Me, index)
+          return
+            list_to_str(
+              { get_source_name(Me), represent_index(Me, index) },
+              name_qualifier
+            )
+        end
+      get_tgf_pathname =
+        function(Me, index)
+          return
+            pathname_to_str(
+              {
+                get_tgf_dir(Me),
+                list_to_str(
+                  { get_closure_name(Me, index), format_tgf },
+                  name_qualifier
+                ),
+              }
+            )
+        end
+      get_dot_pathname =
+        function(Me, index)
+          return
+            pathname_to_str(
+              {
+                get_dot_dir(Me),
+                list_to_str(
+                  { get_closure_name(Me, index), format_dot },
+                  name_qualifier
+                ),
+              }
+            )
+        end
+      get_dot_graphname =
+        function(Me, index)
+          return get_closure_name(Me, index)
+        end
+    end
+    local Methods
+    do
+      local create
+      do
+        local create_instance = request('!.table.create_instance')
+        create =
+          function()
+            local Core = { [1] = false, [2] = false, [3] = false }
+            return create_instance(Core, Methods)
+          end
+      end
+      Methods =
+        {
+          create = create,
+          SetSourceName = set_source_name,
+          SetOutputDir = set_output_dir,
+          SetNumItems = set_num_items,
+          GetTgfDir = get_tgf_dir,
+          GetDotDir = get_dot_dir,
+          GetTgfPathname = get_tgf_pathname,
+          GetDotPathname = get_dot_pathname,
+          GetDotGraphname = get_dot_graphname,
+        }
+    end
+    return Methods
+  end
 _G.package.preload['generate_callgraphs_lua'] =
   function(...)
     require('workshop.base')
-    local AsciiChars = request('!.concepts.Ascii.Chars')
+    local space
+    local newline
+    do
+      local AsciiChars = request('!.concepts.Ascii.Chars')
+      space = AsciiChars.space
+      newline = AsciiChars.newline
+    end
     local get_chunks
     do
       local get_bytecode_listing =
@@ -9,15 +137,14 @@ _G.package.preload['generate_callgraphs_lua'] =
       local StringStream = request('!.concepts.StreamIo.Output.String')
       local itness_from_str = request('!.convert.itness_from_str')
       get_chunks =
-        function(source_code_path_name)
+        function(sourcecode_pathname)
           local StringStream = new(StringStream)
-          get_bytecode_listing({ source_code_path_name }, StringStream)
+          get_bytecode_listing({ sourcecode_pathname }, StringStream)
           return itness_from_str(StringStream:GetString())
         end
     end
     local get_callgraph
     do
-      local space = AsciiChars.space
       local list_to_str = request('!.concepts.list.to_string')
       local get_next_ones = request('callgraph.get_next_ones')
       local add_to_list = request('!.concepts.list.add_item')
@@ -70,62 +197,46 @@ Usage: <lua_file_name> <output_dir>
 -- Martin, 2026-07
 ]]
     local Config =
-      { source_code_path_name = arg[1], output_dir_name = arg[2] }
+      { sourcecode_pathname = arg[1], output_dir_name = arg[2] }
     local console_write =
       function(str)
         io.stdout:write(str)
       end
-    local console_print
-    do
-      local newline = AsciiChars.newline
-      console_print =
-        function(str)
-          console_write(str)
-          console_write(newline)
-        end
-    end
-    do
-      local NamesGiver
-      NamesGiver = request('NamesGiver.Interface')
-      NamesGiver = NamesGiver.create()
-      local Chunks
-      do
-        local source_code_path_name = Config.source_code_path_name
-        local output_dir_name = Config.output_dir_name
-        if not (source_code_path_name and output_dir_name) then
-          console_write(usage_text)
-          return
-        end
-        console_print('( Generating callgraphs')
-        NamesGiver:SetSourceName(source_code_path_name)
-        NamesGiver:SetOutputDir(output_dir_name)
-        do
-          local remove_dir = request('!.file_system.directory.remove')
-          local create_dir = request('!.file_system.directory.create')
-          do
-            local tgf_dir = NamesGiver:GetTgfDir()
-            remove_dir(tgf_dir)
-            create_dir(tgf_dir)
-          end
-          do
-            local dot_dir = NamesGiver:GetDotDir()
-            remove_dir(dot_dir)
-            create_dir(dot_dir)
-          end
-        end
-        Chunks = get_chunks(source_code_path_name)
+    local console_print =
+      function(str)
+        console_write(str)
+        console_write(newline)
       end
-      NamesGiver:SetNumItems(#Chunks)
-      for chunk_index, Chunk in ipairs(Chunks) do
-        local Callgraph = get_callgraph(Chunk)
-        do
-          local file_name = NamesGiver:GetTgfPathname(chunk_index)
-          export_to_tgf(Callgraph, file_name)
-        end
-        do
-          local graph_name = NamesGiver:GetDotGraphname(chunk_index)
-          local file_name = NamesGiver:GetDotPathname(chunk_index)
-          export_to_dot(Callgraph, graph_name, file_name)
+    local NamesGiver = request('NamesGiver').create()
+    do
+      local sourcecode_pathname = Config.sourcecode_pathname
+      local output_dir_name = Config.output_dir_name
+      if not (sourcecode_pathname and output_dir_name) then
+        console_write(usage_text)
+        return
+      end
+      console_print('( Generating callgraphs')
+      NamesGiver:SetSourceName(sourcecode_pathname)
+      NamesGiver:SetOutputDir(output_dir_name)
+      do
+        local recreate_dir = request('!.file_system.directory.recreate')
+        recreate_dir(NamesGiver:GetTgfDir())
+        recreate_dir(NamesGiver:GetDotDir())
+      end
+      do
+        local Chunks = get_chunks(sourcecode_pathname)
+        NamesGiver:SetNumItems(#Chunks)
+        for chunk_index, Chunk in ipairs(Chunks) do
+          local Callgraph = get_callgraph(Chunk)
+          do
+            local file_name = NamesGiver:GetTgfPathname(chunk_index)
+            export_to_tgf(Callgraph, file_name)
+          end
+          do
+            local graph_name = NamesGiver:GetDotGraphname(chunk_index)
+            local file_name = NamesGiver:GetDotPathname(chunk_index)
+            export_to_dot(Callgraph, graph_name, file_name)
+          end
         end
       end
       console_print(')')
@@ -663,6 +774,15 @@ _G.package.preload['workshop.table.attach_methods'] =
               end,
           }
         setmetatable(Object, Metatable)
+      end
+  end
+_G.package.preload['workshop.file_system.directory.recreate'] =
+  function(...)
+    local remove_dir = request('remove')
+    local create_dir = request('create')
+    return
+      function(dir_name)
+        return remove_dir(dir_name) and create_dir(dir_name)
       end
   end
 _G.package.preload['workshop.file_system.directory.create'] =
@@ -2165,18 +2285,6 @@ _G.package.preload['workshop.concepts.path_name.Syntels'] =
   function(...)
     return { separator = '/', self_dir = '.', upper_dir = '..' }
   end
-_G.package.preload['workshop.concepts.path_name.add_separator'] =
-  function(...)
-    local sep = request('Syntels').separator
-    local ends_with = request('!.string.ends_with')
-    return
-      function(str)
-        if ends_with(str, sep) then
-          return str
-        end
-        return str .. sep
-      end
-  end
 _G.package.preload['callgraph.get_next_ones'] =
   function(...)
     local get_next_ones
@@ -2838,148 +2946,5 @@ _G.package.preload['callgraph.callgraph_to_dot.concepts.Syntels'] =
         end_attr = AsciiChars.closing_bracket,
       }
     return Syntels
-  end
-_G.package.preload['NamesGiver.get_padded_number_format'] =
-  function(...)
-    local get_num_digits = request('!.number.get_num_dec_digits')
-    local int_to_str = tostring
-    local get_padded_number_format =
-      function(num_items)
-        local num_digits = get_num_digits(num_items)
-        return '%0' .. int_to_str(num_digits) .. 'd'
-      end
-    return get_padded_number_format
-  end
-_G.package.preload['NamesGiver.get_file_name'] =
-  function(...)
-    local get_path_from_str =
-      request('!.concepts.path_name.pathname_from_str')
-    local get_name_from_path = request('!.concepts.path_name.get_name')
-    local get_file_name =
-      function(source_code_path_name)
-        return
-          get_name_from_path(get_path_from_str(source_code_path_name))
-      end
-    return get_file_name
-  end
-_G.package.preload['NamesGiver.get_base_dir'] =
-  function(...)
-    local add_dir_postfix =
-      request('!.concepts.path_name.add_separator')
-    local normalize_pathname = request('!.concepts.path_name.normalize')
-    local get_base_dir =
-      function(output_dir_name)
-        return normalize_pathname(add_dir_postfix(output_dir_name))
-      end
-    return get_base_dir
-  end
-_G.package.preload['NamesGiver.Interface'] =
-  function(...)
-    local create_instance = request('!.table.create_instance')
-    local set_output_dir
-    do
-      local get_base_dir = request('get_base_dir')
-      set_output_dir =
-        function(Me, output_dir_name)
-          Me[1] = get_base_dir(output_dir_name)
-        end
-    end
-    local get_output_dir =
-      function(Me)
-        return Me[1]
-      end
-    local set_source_name
-    do
-      local get_file_name = request('get_file_name')
-      set_source_name =
-        function(Me, source_file_name)
-          Me[2] = get_file_name(source_file_name)
-        end
-    end
-    local get_source_name =
-      function(Me)
-        return Me[2]
-      end
-    local set_num_items
-    do
-      local PaddedIndex = request('!.concepts.PaddedIndex')
-      set_num_items =
-        function(Me, num_items)
-          Me[3] = PaddedIndex.create(num_items)
-        end
-    end
-    local get_padded_index =
-      function(Me, index)
-        return Me[3]:ToString(index)
-      end
-    local get_tgf_dir
-    local get_dot_dir
-    local get_tgf_pathname
-    local get_dot_pathname
-    local get_dot_graphname
-    do
-      local str_tgf = 'tgf'
-      local str_dot = 'dot'
-      get_tgf_dir =
-        function(Me)
-          return get_output_dir(Me) .. str_tgf
-        end
-      get_dot_dir =
-        function(Me)
-          return get_output_dir(Me) .. str_dot
-        end
-      local slash
-      local dot
-      do
-        local AsciiChars = request('!.concepts.Ascii.Chars')
-        slash = AsciiChars.slash
-        dot = AsciiChars.dot
-      end
-      get_tgf_pathname =
-        function(Me, index)
-          return
-            get_tgf_dir(Me) ..
-            slash ..
-            get_source_name(Me) ..
-            dot ..
-            get_padded_index(Me, index) ..
-            dot ..
-            str_tgf
-        end
-      get_dot_pathname =
-        function(Me, index)
-          return
-            get_dot_dir(Me) ..
-            slash ..
-            get_source_name(Me) ..
-            dot ..
-            get_padded_index(Me, index) ..
-            dot ..
-            str_dot
-        end
-      get_dot_graphname =
-        function(Me, index)
-          return
-            get_source_name(Me) .. dot .. get_padded_index(Me, index)
-        end
-    end
-    local Methods
-    Methods =
-      {
-        create =
-          function()
-            local Core = { [1] = false, [2] = false, [3] = false }
-            return create_instance(Core, Methods)
-          end,
-        SetOutputDir = set_output_dir,
-        SetSourceName = set_source_name,
-        SetNumItems = set_num_items,
-        GetTgfDir = get_tgf_dir,
-        GetDotDir = get_dot_dir,
-        GetTgfPathname = get_tgf_pathname,
-        GetDotPathname = get_dot_pathname,
-        GetDotGraphname = get_dot_graphname,
-      }
-    return Methods
   end
 return require('generate_callgraphs_lua')
