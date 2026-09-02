@@ -2,12 +2,18 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-01
+  Last mod.: 2026-09-02
 ]]
 
 require('workshop.base')
 
-local AsciiChars = request('!.concepts.Ascii.Chars')
+local space
+local newline
+do
+  local AsciiChars = request('!.concepts.Ascii.Chars')
+  space = AsciiChars.space
+  newline = AsciiChars.newline
+end
 
 --[[
   Get parsed closure listings from source code file
@@ -19,10 +25,10 @@ do
   local itness_from_str = request('!.convert.itness_from_str')
 
   get_chunks =
-    function(source_code_path_name)
+    function(sourcecode_pathname)
       local StringStream = new(StringStream)
 
-      get_bytecode_listing({ source_code_path_name }, StringStream)
+      get_bytecode_listing({ sourcecode_pathname }, StringStream)
 
       return itness_from_str(StringStream:GetString())
     end
@@ -49,7 +55,6 @@ end
 ]]
 local get_callgraph
 do
-  local space = AsciiChars.space
   local list_to_str = request('!.concepts.list.to_string')
   local get_next_ones = request('callgraph.get_next_ones')
   local add_to_list = request('!.concepts.list.add_item')
@@ -70,15 +75,13 @@ do
     end
 end
 
--- Export callgraph to .tgf file
 local export_to_tgf
--- Export callgraph to .dot file
 local export_to_dot
-
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
   do
     local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+    -- Export callgraph to .tgf file
     export_to_tgf =
       function(Callgraph, file_name)
         local OutputStream = new(OutputFileStream)
@@ -89,6 +92,7 @@ do
   end
   do
     local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+    -- Export callgraph to .dot file
     export_to_dot =
       function(Callgraph, graph_name, file_name)
         local OutputStream = new(OutputFileStream)
@@ -110,7 +114,7 @@ Usage: <lua_file_name> <output_dir>
 
 local Config =
   {
-    source_code_path_name = arg[1],
+    sourcecode_pathname = arg[1],
     output_dir_name = arg[2],
   }
 
@@ -119,68 +123,51 @@ local console_write =
     io.stdout:write(str)
   end
 
-local console_print
-do
-  local newline = AsciiChars.newline
-  console_print =
-    function(str)
-      console_write(str)
-      console_write(newline)
-    end
-end
+local console_print =
+  function(str)
+    console_write(str)
+    console_write(newline)
+  end
+
+local NamesGiver = request('NamesGiver').create()
 
 -- Main
 do
-  local NamesGiver
-  NamesGiver = request('NamesGiver')
-  NamesGiver = NamesGiver.create()
+  local sourcecode_pathname = Config.sourcecode_pathname
+  local output_dir_name = Config.output_dir_name
 
-  local Chunks
-
-  do
-    local source_code_path_name = Config.source_code_path_name
-    local output_dir_name = Config.output_dir_name
-
-    if not (source_code_path_name and output_dir_name) then
-      console_write(usage_text)
-      return
-    end
-
-    console_print('( Generating callgraphs')
-
-    NamesGiver:SetSourceName(source_code_path_name)
-    NamesGiver:SetOutputDir(output_dir_name)
-
-    do
-      local remove_dir = request('!.file_system.directory.remove')
-      local create_dir = request('!.file_system.directory.create')
-      do
-        local tgf_dir = NamesGiver:GetTgfDir()
-        remove_dir(tgf_dir)
-        create_dir(tgf_dir)
-      end
-      do
-        local dot_dir = NamesGiver:GetDotDir()
-        remove_dir(dot_dir)
-        create_dir(dot_dir)
-      end
-    end
-
-    Chunks = get_chunks(source_code_path_name)
+  if not (sourcecode_pathname and output_dir_name) then
+    console_write(usage_text)
+    return
   end
 
-  NamesGiver:SetNumItems(#Chunks)
+  console_print('( Generating callgraphs')
 
-  for chunk_index, Chunk in ipairs(Chunks) do
-    local Callgraph = get_callgraph(Chunk)
-    do
-      local file_name = NamesGiver:GetTgfPathname(chunk_index)
-      export_to_tgf(Callgraph, file_name)
-    end
-    do
-      local graph_name = NamesGiver:GetDotGraphname(chunk_index)
-      local file_name = NamesGiver:GetDotPathname(chunk_index)
-      export_to_dot(Callgraph, graph_name, file_name)
+  NamesGiver:SetSourceName(sourcecode_pathname)
+  NamesGiver:SetOutputDir(output_dir_name)
+
+  do
+    local recreate_dir = request('!.file_system.directory.recreate')
+    recreate_dir(NamesGiver:GetTgfDir())
+    recreate_dir(NamesGiver:GetDotDir())
+  end
+
+  do
+    local Chunks = get_chunks(sourcecode_pathname)
+
+    NamesGiver:SetNumItems(#Chunks)
+
+    for chunk_index, Chunk in ipairs(Chunks) do
+      local Callgraph = get_callgraph(Chunk)
+      do
+        local file_name = NamesGiver:GetTgfPathname(chunk_index)
+        export_to_tgf(Callgraph, file_name)
+      end
+      do
+        local graph_name = NamesGiver:GetDotGraphname(chunk_index)
+        local file_name = NamesGiver:GetDotPathname(chunk_index)
+        export_to_dot(Callgraph, graph_name, file_name)
+      end
     end
   end
 
@@ -188,8 +175,6 @@ do
 end
 
 --[[
-  2026-07-15
-  2026-07-17
-  2026-07-23
-  2026-07-31
+  2026 # # # #
+  2026-09-02
 ]]
