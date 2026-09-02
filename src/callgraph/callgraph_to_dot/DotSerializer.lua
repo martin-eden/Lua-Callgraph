@@ -2,22 +2,26 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-08-01
+  Last mod.: 2026-09-02
 ]]
 
 --[[
   .dot (DAG of tomorrow) is text format for graphs
 
-  It's mentioned at
-
-    https://en.wikipedia.org/wiki/DOT_(graph_description_language)
-
-  and described by "$ man dot" and at
+  It's described at
 
     https://graphviz.org/doc/info/lang.html
 
-  It has expressive syntax and nice for manual editing.
+  (and also described by "$ man dot")
 
+  and mentioned at
+
+    https://en.wikipedia.org/wiki/DOT_(graph_description_language)
+
+  It has expressive syntax and nice for manual editing.
+]]
+
+--[[
   This implementation uses subgraphs to represent node emitting
   several edges. Also it merges chains into one .dot statement.
 ]]

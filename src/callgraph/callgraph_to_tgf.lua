@@ -2,16 +2,18 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-08-07
+  Last mod.: 2026-09-02
 ]]
 
 --[[
-  .tgf (trivial graph format) is simple and thus nice
+  .tgf (trivial graph format) is simple and nice for code generation
 
   It's described at
 
     https://en.wikipedia.org/wiki/Trivial_Graph_Format
+]]
 
+--[[
   This implementation surrounds branching nodes with empty lines.
   We can't do much more for niceness.
 ]]
