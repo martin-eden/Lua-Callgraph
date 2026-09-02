@@ -132,7 +132,7 @@ end
 -- Main
 do
   local NamesGiver
-  NamesGiver = request('NamesGiver.Interface')
+  NamesGiver = request('NamesGiver')
   NamesGiver = NamesGiver.create()
 
   local Chunks
