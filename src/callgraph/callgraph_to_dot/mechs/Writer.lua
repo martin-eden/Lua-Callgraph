@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-29
+  Last mod.: 2026-09-02
 ]]
 
 --[[
@@ -19,10 +19,9 @@
   This code also wraps long lines when writing chains.
 ]]
 
--- Imports:
 local Syntels = request('^.concepts.Syntels')
-local Delimiters = request('concepts.Delimiters')
 local Spaces = request('^.concepts.Spaces')
+
 local LinksWriter = request('LinksWriter')
 
 local OutputStream
@@ -32,14 +31,13 @@ local line_len = 0
 
 local write =
   function(str)
-    if (str == '') then return end
     OutputStream:Write(str)
     line_len = line_len + #str
   end
 
 local write_cont
 do
-  local line_item_separator = Delimiters.line_item_separator
+  local line_item_separator = Spaces.space
   write_cont =
     function(str)
       write(str)
@@ -49,7 +47,7 @@ end
 
 local write_final
 do
-  local line_separator = Delimiters.line_separator
+  local line_separator = Spaces.newline
   write_final =
     function(str)
       write(str)
@@ -175,6 +173,21 @@ local write_node =
     end_statement()
   end
 
+local write_subgraph
+do
+  local start_graph = Syntels.start_graph
+  local end_graph = Syntels.end_graph
+  write_subgraph =
+    function(DestNames)
+      write_cont(start_graph)
+      for _, dest_name in ipairs(DestNames) do
+        write_cont(quote(dest_name))
+      end
+      write(end_graph)
+      end_statement()
+    end
+end
+
 local Methods
 Methods =
   {
@@ -203,6 +216,7 @@ Methods =
     end_graph = end_graph,
 
     write_node = write_node,
+    write_subgraph = write_subgraph,
 
     write_links = LinksWriter.write_links,
     done_write_links = LinksWriter.done_write_links,
@@ -212,6 +226,6 @@ Methods =
 return Methods
 
 --[[
-  2026-07-27
-  2026-07-28
+  2026 # #
+  2026-09-02
 ]]

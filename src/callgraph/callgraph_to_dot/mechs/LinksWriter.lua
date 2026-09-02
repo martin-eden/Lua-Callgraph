@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-29
+  Last mod.: 2026-09-02
 ]]
 
 --[[
@@ -25,21 +25,6 @@ local Syntels = request('^.concepts.Syntels')
 
 -- Set in init()
 local Writer
-
-local write_subgraph
-do
-  local start_graph = Syntels.start_graph
-  local end_graph = Syntels.end_graph
-  write_subgraph =
-    function(DestNames)
-      Writer.write_cont(start_graph)
-      for _, dest_name in ipairs(DestNames) do
-        Writer.write_cont(Writer.quote(dest_name))
-      end
-      Writer.write(end_graph)
-      Writer.end_statement()
-    end
-end
 
 --[[
   Queue storage format:
@@ -93,18 +78,19 @@ local write_links =
         Writer.write_cont(Queue[2])
         Writer.write_arrow()
         Queue[1], Queue[2] = false, false
-        write_subgraph(DestNames)
+        Writer.write_subgraph(DestNames)
       else
         queue_flush()
         Writer.start_statement()
         Writer.write_cont(source_name)
         Writer.write_arrow()
-        write_subgraph(DestNames)
+        Writer.write_subgraph(DestNames)
       end
     end
   end
 
-local Interface =
+-- Export:
+return
   {
     init =
       function(Arg_Writer)
@@ -114,10 +100,7 @@ local Interface =
     done_write_links = queue_flush,
   }
 
--- Export:
-return Interface
-
 --[[
-  2026-07-24
-  2026-07-27
+  2026 # #
+  2026-09-02
 ]]
