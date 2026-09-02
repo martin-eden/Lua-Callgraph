@@ -2785,7 +2785,7 @@ _G.package.preload['callgraph.callgraph_to_dot.mechs.Writer'] =
     end
     local write_arrow
     do
-      local wrapping_len = 45
+      local wrapping_len = 52
       local arrow = Syntels.arrow
       write_arrow =
         function()
