@@ -44,7 +44,7 @@ _G.package.preload['NamesGiver'] =
     local get_dot_pathname
     local get_dot_graphname
     do
-      local name_qualifier = request('!.concepts.Ascii.Chars').dot
+      local name_delimiter = request('!.concepts.Ascii.Chars').dot
       local listing_filename = 'listing.is'
       local format_tgf = 'tgf'
       local format_dot = 'dot'
@@ -61,14 +61,6 @@ _G.package.preload['NamesGiver'] =
           return
             pathname_to_str({ get_output_dir(Me), listing_filename })
         end
-      local get_closure_name =
-        function(Me, index)
-          return
-            list_to_str(
-              { get_source_name(Me), represent_index(Me, index) },
-              name_qualifier
-            )
-        end
       get_tgf_pathname =
         function(Me, index)
           return
@@ -76,8 +68,8 @@ _G.package.preload['NamesGiver'] =
               {
                 get_tgf_dir(Me),
                 list_to_str(
-                  { get_closure_name(Me, index), format_tgf },
-                  name_qualifier
+                  { represent_index(Me, index), format_tgf },
+                  name_delimiter
                 ),
               }
             )
@@ -89,15 +81,11 @@ _G.package.preload['NamesGiver'] =
               {
                 get_dot_dir(Me),
                 list_to_str(
-                  { get_closure_name(Me, index), format_dot },
-                  name_qualifier
+                  { represent_index(Me, index), format_dot },
+                  name_delimiter
                 ),
               }
             )
-        end
-      get_dot_graphname =
-        function(Me, index)
-          return get_closure_name(Me, index)
         end
     end
     local Methods
@@ -123,7 +111,6 @@ _G.package.preload['NamesGiver'] =
           GetListingPathname = get_listing_pathname,
           GetTgfPathname = get_tgf_pathname,
           GetDotPathname = get_dot_pathname,
-          GetDotGraphname = get_dot_graphname,
         }
     end
     return Methods
@@ -202,10 +189,10 @@ _G.package.preload['generate_callgraphs_lua'] =
       do
         local callgraph_to_dot = request('callgraph.callgraph_to_dot')
         export_to_dot =
-          function(Callgraph, graph_name, file_name)
+          function(Callgraph, file_name)
             local OutputStream = new(OutputFileStream)
             OutputStream:Open(file_name)
-            callgraph_to_dot(Callgraph, graph_name, OutputStream)
+            callgraph_to_dot(Callgraph, OutputStream)
             OutputStream:Close()
           end
       end
@@ -256,15 +243,12 @@ Usage: <lua_file_name> <output_dir>
         NamesGiver:SetNumItems(#Chunks)
         for chunk_index, Chunk in ipairs(Chunks) do
           local Callgraph = get_callgraph(Chunk)
-          do
-            local file_name = NamesGiver:GetTgfPathname(chunk_index)
-            export_to_tgf(Callgraph, file_name)
-          end
-          do
-            local graph_name = NamesGiver:GetDotGraphname(chunk_index)
-            local file_name = NamesGiver:GetDotPathname(chunk_index)
-            export_to_dot(Callgraph, graph_name, file_name)
-          end
+          export_to_tgf(
+            Callgraph, NamesGiver:GetTgfPathname(chunk_index)
+          )
+          export_to_dot(
+            Callgraph, NamesGiver:GetDotPathname(chunk_index)
+          )
         end
       end
       console_print(')')
@@ -2419,7 +2403,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
   end
 _G.package.preload['callgraph.callgraph_to_dot'] =
   function(...)
-    local Writer = request('callgraph_to_dot.mechs.Writer')
+    local Writer = request('callgraph_to_dot.Writer')
     local IndexSerializer = request('!.concepts.PaddedIndex')
     local get_node_name =
       function(index)
@@ -2483,12 +2467,10 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
         Writer.done_write_links()
       end
     local callgraph_to_dot =
-      function(InstructionsGraph, graph_name, OutputStream)
+      function(InstructionsGraph, OutputStream)
         Writer.init(OutputStream)
         IndexSerializer = IndexSerializer.create(#InstructionsGraph)
-        Writer.start_graph(graph_name)
-        serialize_links(InstructionsGraph)
-        Writer.write_empty_line()
+        Writer.start_graph()
         for
           instruction_index, Instruction in ipairs(InstructionsGraph)
         do
@@ -2496,6 +2478,8 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
             get_node_name(instruction_index), Instruction.label
           )
         end
+        Writer.write_empty_line()
+        serialize_links(InstructionsGraph)
         Writer.end_graph()
       end
     return callgraph_to_dot
@@ -2675,9 +2659,20 @@ _G.package.preload['callgraph.vm_2015.get_next_ones'] =
     end
     return get_next_ones
   end
-_G.package.preload['callgraph.callgraph_to_dot.mechs.LinksWriter'] =
+_G.package.preload['callgraph.callgraph_to_dot.Spaces'] =
   function(...)
-    local Syntels = request('^.concepts.Syntels')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    local Spaces =
+      {
+        space = AsciiChars.space,
+        tab = AsciiChars.tab,
+        newline = AsciiChars.newline,
+      }
+    return Spaces
+  end
+_G.package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
+  function(...)
+    local Syntels = request('Syntels')
     local Writer
     local Queue = { [1] = false, [2] = false }
     local queue_add =
@@ -2740,10 +2735,28 @@ _G.package.preload['callgraph.callgraph_to_dot.mechs.LinksWriter'] =
         done_write_links = queue_flush,
       }
   end
-_G.package.preload['callgraph.callgraph_to_dot.mechs.Writer'] =
+_G.package.preload['callgraph.callgraph_to_dot.Syntels'] =
   function(...)
-    local Syntels = request('^.concepts.Syntels')
-    local Spaces = request('^.concepts.Spaces')
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    local Syntels =
+      {
+        kw_digraph = 'digraph',
+        kw_label = 'label',
+        arrow = '->',
+        quote = AsciiChars.double_quote,
+        assign = AsciiChars.equals,
+        end_statement = AsciiChars.semicolon,
+        start_graph = AsciiChars.opening_brace,
+        end_graph = AsciiChars.closing_brace,
+        start_attr = AsciiChars.opening_bracket,
+        end_attr = AsciiChars.closing_bracket,
+      }
+    return Syntels
+  end
+_G.package.preload['callgraph.callgraph_to_dot.Writer'] =
+  function(...)
+    local Syntels = request('Syntels')
+    local Spaces = request('Spaces')
     local LinksWriter = request('LinksWriter')
     local OutputStream
     local line_len = 0
@@ -2850,14 +2863,16 @@ _G.package.preload['callgraph.callgraph_to_dot.mechs.Writer'] =
     end
     local start_graph
     do
-      local strict = Syntels.kw_strict
       local digraph = Syntels.kw_digraph
       local start_graph_str = Syntels.start_graph
       start_graph =
         function(graph_name)
-          write_cont(strict)
-          write_cont(digraph)
-          write_final(quote(graph_name))
+          if graph_name then
+            write_cont(digraph)
+            write_final(quote(graph_name))
+          else
+            write_final(digraph)
+          end
           write_final(start_graph_str)
         end
     end
@@ -2917,35 +2932,5 @@ _G.package.preload['callgraph.callgraph_to_dot.mechs.Writer'] =
         done_write_links = LinksWriter.done_write_links,
       }
     return Methods
-  end
-_G.package.preload['callgraph.callgraph_to_dot.concepts.Spaces'] =
-  function(...)
-    local AsciiChars = request('!.concepts.Ascii.Chars')
-    local Spaces =
-      {
-        space = AsciiChars.space,
-        tab = AsciiChars.tab,
-        newline = AsciiChars.newline,
-      }
-    return Spaces
-  end
-_G.package.preload['callgraph.callgraph_to_dot.concepts.Syntels'] =
-  function(...)
-    local AsciiChars = request('!.concepts.Ascii.Chars')
-    local Syntels =
-      {
-        kw_strict = 'strict',
-        kw_digraph = 'digraph',
-        kw_label = 'label',
-        arrow = '->',
-        quote = AsciiChars.double_quote,
-        assign = AsciiChars.equals,
-        end_statement = AsciiChars.semicolon,
-        start_graph = AsciiChars.opening_brace,
-        end_graph = AsciiChars.closing_brace,
-        start_attr = AsciiChars.opening_bracket,
-        end_attr = AsciiChars.closing_bracket,
-      }
-    return Syntels
   end
 return require('generate_callgraphs_lua')
