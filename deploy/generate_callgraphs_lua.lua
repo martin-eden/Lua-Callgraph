@@ -1,4 +1,4 @@
-_G.package.preload['NamesGiver'] =
+package.preload['NamesGiver'] =
   function(...)
     local pathname_from_str =
       request('!.concepts.path_name.pathname_from_str')
@@ -115,7 +115,7 @@ _G.package.preload['NamesGiver'] =
     end
     return Methods
   end
-_G.package.preload['generate_callgraphs_lua'] =
+package.preload['generate_callgraphs_lua'] =
   function(...)
     require('workshop.base')
     local space
@@ -254,7 +254,7 @@ Usage: <lua_file_name> <output_dir>
       console_print(')')
     end
   end
-_G.package.preload['workshop.base'] =
+package.preload['workshop.base'] =
   function(...)
     local str_match = string.match
     local str_find = string.find
@@ -414,7 +414,7 @@ _G.package.preload['workshop.base'] =
       end
     end
   end
-_G.package.preload['workshop.system.install_is_functions'] =
+package.preload['workshop.system.install_is_functions'] =
   function(...)
     local type_is =
       function(type_name)
@@ -449,7 +449,7 @@ _G.package.preload['workshop.system.install_is_functions'] =
         end
       end
   end
-_G.package.preload['workshop.system.install_assert_functions'] =
+package.preload['workshop.system.install_assert_functions'] =
   function(...)
     local spawn_assert_func
     do
@@ -482,7 +482,7 @@ _G.package.preload['workshop.system.install_assert_functions'] =
       end
     return install_assert_funcs
   end
-_G.package.preload['workshop.programs.get_bytecode_listing'] =
+package.preload['workshop.programs.get_bytecode_listing'] =
   function(...)
     local file_to_str = request('!.convert.file_to_str')
     local get_bytecode =
@@ -499,18 +499,18 @@ _G.package.preload['workshop.programs.get_bytecode_listing'] =
         )
       end
   end
-_G.package.preload['workshop.lua.regexp.magic_chars'] =
+package.preload['workshop.lua.regexp.magic_chars'] =
   function(...)
     return '^$()[]%.?*+-'
   end
-_G.package.preload['workshop.lua.regexp.magic_char_pattern'] =
+package.preload['workshop.lua.regexp.magic_char_pattern'] =
   function(...)
     local magic_chars = request('magic_chars')
     local magic_char_patttern =
       '[' .. magic_chars:gsub('.', '%%%0') .. ']'
     return magic_char_patttern
   end
-_G.package.preload['workshop.lua.regexp.quote'] =
+package.preload['workshop.lua.regexp.quote'] =
   function(...)
     local magic_char_pattern = request('magic_char_pattern')
     return
@@ -518,9 +518,7 @@ _G.package.preload['workshop.lua.regexp.quote'] =
         return s:gsub(magic_char_pattern, '%%%0')
       end
   end
-_G.package.preload[
-  'workshop.mechs.cmdline.get_cmd_decompile_lua_bytecode'
-] =
+package.preload['workshop.mechs.cmdline.get_cmd_decompile_lua_bytecode'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
     local ShellCommand = request('!.concepts.ShellCommand')
@@ -532,9 +530,7 @@ _G.package.preload[
       end
     return get_cmd_decompile_lua_bytecode
   end
-_G.package.preload[
-  'workshop.mechs.cmdline.get_cmd_execute_with_redirects'
-] =
+package.preload['workshop.mechs.cmdline.get_cmd_execute_with_redirects'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
     local quote = request('!.concepts.shell.quote')
@@ -552,7 +548,7 @@ _G.package.preload[
         return glue_words(Command)
       end
   end
-_G.package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
+package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
     local ShellCommand = request('!.concepts.ShellCommand')
@@ -562,7 +558,7 @@ _G.package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
         return ShellCommand.create(Command)
       end
   end
-_G.package.preload['workshop.mechs.cmdline.get_cmd_mkdir'] =
+package.preload['workshop.mechs.cmdline.get_cmd_mkdir'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
     local ShellCommand = request('!.concepts.ShellCommand')
@@ -572,7 +568,7 @@ _G.package.preload['workshop.mechs.cmdline.get_cmd_mkdir'] =
         return ShellCommand.create(Command)
       end
   end
-_G.package.preload['workshop.mechs.cmdline.get_cmd_rmdir'] =
+package.preload['workshop.mechs.cmdline.get_cmd_rmdir'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
     local ShellCommand = request('!.concepts.ShellCommand')
@@ -582,7 +578,7 @@ _G.package.preload['workshop.mechs.cmdline.get_cmd_rmdir'] =
         return ShellCommand.create(Command)
       end
   end
-_G.package.preload['workshop.number.is_natural'] =
+package.preload['workshop.number.is_natural'] =
   function(...)
     return
       function(Number)
@@ -596,7 +592,7 @@ _G.package.preload['workshop.number.is_natural'] =
         return true
       end
   end
-_G.package.preload['workshop.number.get_num_dec_digits'] =
+package.preload['workshop.number.get_num_dec_digits'] =
   function(...)
     local assert_integer = _G.assert_integer
     local abs = math.abs
@@ -612,7 +608,7 @@ _G.package.preload['workshop.number.get_num_dec_digits'] =
       end
     return get_num_dec_digits
   end
-_G.package.preload['workshop.table.clone'] =
+package.preload['workshop.table.clone'] =
   function(...)
     return
       function(Node)
@@ -639,7 +635,7 @@ _G.package.preload['workshop.table.clone'] =
         return clone(Node)
       end
   end
-_G.package.preload['workshop.table.new'] =
+package.preload['workshop.table.new'] =
   function(...)
     local clone = request('clone')
     local patch = request('patch')
@@ -653,7 +649,7 @@ _G.package.preload['workshop.table.new'] =
         return Result
       end
   end
-_G.package.preload['workshop.table.patch'] =
+package.preload['workshop.table.patch'] =
   function(...)
     local Rules = { { has_a = true, has_b = true, action = 'replace' } }
     local apply_table = request('apply_table')
@@ -662,7 +658,7 @@ _G.package.preload['workshop.table.patch'] =
         apply_table(Result, Additions, Rules)
       end
   end
-_G.package.preload['workshop.table.map_values'] =
+package.preload['workshop.table.map_values'] =
   function(...)
     return
       function(List)
@@ -674,7 +670,7 @@ _G.package.preload['workshop.table.map_values'] =
         return Result
       end
   end
-_G.package.preload['workshop.table.create_instance'] =
+package.preload['workshop.table.create_instance'] =
   function(...)
     local clone = request('clone')
     local attach_methods = request('attach_methods')
@@ -688,7 +684,7 @@ _G.package.preload['workshop.table.create_instance'] =
         return Result
       end
   end
-_G.package.preload['workshop.table.get_values'] =
+package.preload['workshop.table.get_values'] =
   function(...)
     local add_to_list = request('!.concepts.list.add_item')
     return
@@ -701,7 +697,7 @@ _G.package.preload['workshop.table.get_values'] =
         return Values
       end
   end
-_G.package.preload['workshop.table.apply_table'] =
+package.preload['workshop.table.apply_table'] =
   function(...)
     local keep_str = 'keep'
     local replace_str = 'replace'
@@ -771,7 +767,7 @@ _G.package.preload['workshop.table.apply_table'] =
         apply_table(A, B, Rules)
       end
   end
-_G.package.preload['workshop.table.attach_methods'] =
+package.preload['workshop.table.attach_methods'] =
   function(...)
     return
       function(Object, Methods)
@@ -788,7 +784,7 @@ _G.package.preload['workshop.table.attach_methods'] =
         setmetatable(Object, Metatable)
       end
   end
-_G.package.preload['workshop.file_system.directory.recreate'] =
+package.preload['workshop.file_system.directory.recreate'] =
   function(...)
     local remove_dir = request('remove')
     local create_dir = request('create')
@@ -797,7 +793,7 @@ _G.package.preload['workshop.file_system.directory.recreate'] =
         return remove_dir(dir_name) and create_dir(dir_name)
       end
   end
-_G.package.preload['workshop.file_system.directory.create'] =
+package.preload['workshop.file_system.directory.create'] =
   function(...)
     local directory_exists = request('exists')
     local get_mkdir_command = request('!.mechs.cmdline.get_cmd_mkdir')
@@ -815,7 +811,7 @@ _G.package.preload['workshop.file_system.directory.create'] =
       end
     return create_dir
   end
-_G.package.preload['workshop.file_system.directory.exists'] =
+package.preload['workshop.file_system.directory.exists'] =
   function(...)
     local normalize_name = request('!.concepts.path_name.normalize')
     local is_directory =
@@ -833,7 +829,7 @@ _G.package.preload['workshop.file_system.directory.exists'] =
       end
     return is_directory
   end
-_G.package.preload['workshop.file_system.directory.remove'] =
+package.preload['workshop.file_system.directory.remove'] =
   function(...)
     local directory_exists = request('exists')
     local get_rmdir_command = request('!.mechs.cmdline.get_cmd_rmdir')
@@ -851,7 +847,7 @@ _G.package.preload['workshop.file_system.directory.remove'] =
       end
     return delete_dir
   end
-_G.package.preload['workshop.file_system.file.open'] =
+package.preload['workshop.file_system.file.open'] =
   function(...)
     local normalize_name = request('!.concepts.path_name.normalize')
     local default_mode = 'rb'
@@ -869,7 +865,7 @@ _G.package.preload['workshop.file_system.file.open'] =
       end
     return open_file
   end
-_G.package.preload['workshop.file_system.file.open_for_writing'] =
+package.preload['workshop.file_system.file.open_for_writing'] =
   function(...)
     local open_file = request('open')
     local open_for_writing =
@@ -878,7 +874,7 @@ _G.package.preload['workshop.file_system.file.open_for_writing'] =
       end
     return open_for_writing
   end
-_G.package.preload['workshop.file_system.file.close'] =
+package.preload['workshop.file_system.file.close'] =
   function(...)
     local close =
       function(File)
@@ -893,7 +889,7 @@ _G.package.preload['workshop.file_system.file.close'] =
       end
     return close
   end
-_G.package.preload['workshop.file_system.file.create'] =
+package.preload['workshop.file_system.file.create'] =
   function(...)
     local open_file = request('open')
     local create_file =
@@ -906,7 +902,7 @@ _G.package.preload['workshop.file_system.file.create'] =
       end
     return create_file
   end
-_G.package.preload['workshop.file_system.file.to_string'] =
+package.preload['workshop.file_system.file.to_string'] =
   function(...)
     local open_file = request('open')
     local load_file_contents =
@@ -918,7 +914,7 @@ _G.package.preload['workshop.file_system.file.to_string'] =
       end
     return load_file_contents
   end
-_G.package.preload['workshop.file_system.file.exists'] =
+package.preload['workshop.file_system.file.exists'] =
   function(...)
     local normalize_name = request('!.concepts.path_name.normalize')
     local pathname_exists =
@@ -934,7 +930,7 @@ _G.package.preload['workshop.file_system.file.exists'] =
       end
     return pathname_exists
   end
-_G.package.preload['workshop.file_system.file.open_for_reading'] =
+package.preload['workshop.file_system.file.open_for_reading'] =
   function(...)
     local open_file = request('open')
     local open_for_reading =
@@ -943,7 +939,7 @@ _G.package.preload['workshop.file_system.file.open_for_reading'] =
       end
     return open_for_reading
   end
-_G.package.preload['workshop.file_system.file.remove'] =
+package.preload['workshop.file_system.file.remove'] =
   function(...)
     local file_exists = request('exists')
     local get_rmfile_command = request('!.mechs.cmdline.get_cmd_rmfile')
@@ -961,7 +957,7 @@ _G.package.preload['workshop.file_system.file.remove'] =
       end
     return remove_file
   end
-_G.package.preload['workshop.string.trim'] =
+package.preload['workshop.string.trim'] =
   function(...)
     local trim_head = request('trim_head')
     local trim_tail = request('trim_tail')
@@ -970,7 +966,7 @@ _G.package.preload['workshop.string.trim'] =
         return trim_head(trim_tail(s))
       end
   end
-_G.package.preload['workshop.string.starts_with'] =
+package.preload['workshop.string.starts_with'] =
   function(...)
     local str_sub = string.sub
     return
@@ -978,7 +974,7 @@ _G.package.preload['workshop.string.starts_with'] =
         return (str_sub(base_str, 1, #prefix_str) == prefix_str)
       end
   end
-_G.package.preload['workshop.string.trim_tail'] =
+package.preload['workshop.string.trim_tail'] =
   function(...)
     local trim_tail =
       function(str)
@@ -991,7 +987,7 @@ _G.package.preload['workshop.string.trim_tail'] =
       end
     return trim_tail
   end
-_G.package.preload['workshop.string.ends_with'] =
+package.preload['workshop.string.ends_with'] =
   function(...)
     local str_sub = string.sub
     return
@@ -999,7 +995,7 @@ _G.package.preload['workshop.string.ends_with'] =
         return (str_sub(base_str, -#postfix_str, -1) == postfix_str)
       end
   end
-_G.package.preload['workshop.string.trim_head'] =
+package.preload['workshop.string.trim_head'] =
   function(...)
     local trim_head =
       function(str)
@@ -1012,7 +1008,7 @@ _G.package.preload['workshop.string.trim_head'] =
       end
     return trim_head
   end
-_G.package.preload['workshop.string.split'] =
+package.preload['workshop.string.split'] =
   function(...)
     local ends_with = request('!.string.ends_with')
     local quote_regexp = request('!.lua.regexp.quote')
@@ -1046,11 +1042,11 @@ _G.package.preload['workshop.string.split'] =
       end
     return split_string
   end
-_G.package.preload['workshop.convert.file_to_str'] =
+package.preload['workshop.convert.file_to_str'] =
   function(...)
     return request('!.file_system.file.to_string')
   end
-_G.package.preload['workshop.convert.file_from_str'] =
+package.preload['workshop.convert.file_from_str'] =
   function(...)
     local create_file_with_contents =
       request('!.file_system.file.create')
@@ -1060,7 +1056,7 @@ _G.package.preload['workshop.convert.file_from_str'] =
       end
     return save_str_to_file
   end
-_G.package.preload['workshop.concepts.ShellCommand'] =
+package.preload['workshop.concepts.ShellCommand'] =
   function(...)
     local Interface
     do
@@ -1116,7 +1112,7 @@ _G.package.preload['workshop.concepts.ShellCommand'] =
     end
     return Interface
   end
-_G.package.preload['workshop.concepts.Indent'] =
+package.preload['workshop.concepts.Indent'] =
   function(...)
     local create_instance = request('!.table.create_instance')
     local RangePoint = request('!.concepts.RangePoint')
@@ -1166,7 +1162,7 @@ _G.package.preload['workshop.concepts.Indent'] =
       }
     return Interface
   end
-_G.package.preload['workshop.concepts.RangePoint'] =
+package.preload['workshop.concepts.RangePoint'] =
   function(...)
     local Interface
     local create
@@ -1230,7 +1226,7 @@ _G.package.preload['workshop.concepts.RangePoint'] =
       }
     return Interface
   end
-_G.package.preload['workshop.concepts.PaddedIndex'] =
+package.preload['workshop.concepts.PaddedIndex'] =
   function(...)
     local is_natural = request('!.number.is_natural')
     local get_max_index =
@@ -1271,11 +1267,11 @@ _G.package.preload['workshop.concepts.PaddedIndex'] =
       }
     return Interface
   end
-_G.package.preload['workshop.concepts.lua.NumberTypeNames'] =
+package.preload['workshop.concepts.lua.NumberTypeNames'] =
   function(...)
     return { 'integer', 'float' }
   end
-_G.package.preload['workshop.concepts.lua.TypeNames'] =
+package.preload['workshop.concepts.lua.TypeNames'] =
   function(...)
     return
       {
@@ -1289,7 +1285,7 @@ _G.package.preload['workshop.concepts.lua.TypeNames'] =
         'table',
       }
   end
-_G.package.preload['workshop.concepts.shell.split_shebang'] =
+package.preload['workshop.concepts.shell.split_shebang'] =
   function(...)
     local shebang_prefix = '#!'
     local newline
@@ -1316,7 +1312,7 @@ _G.package.preload['workshop.concepts.shell.split_shebang'] =
       end
     return split_shebang
   end
-_G.package.preload['workshop.concepts.shell.quote'] =
+package.preload['workshop.concepts.shell.quote'] =
   function(...)
     local empty = ''
     local single_quote
@@ -1386,7 +1382,7 @@ _G.package.preload['workshop.concepts.shell.quote'] =
       end
     return quote
   end
-_G.package.preload['workshop.concepts.shell.execute'] =
+package.preload['workshop.concepts.shell.execute'] =
   function(...)
     local execute_shell_command
     do
@@ -1436,7 +1432,7 @@ _G.package.preload['workshop.concepts.shell.execute'] =
     end
     return execute_shell_command
   end
-_G.package.preload['workshop.concepts.shell.quote.SpecialChars'] =
+package.preload['workshop.concepts.shell.quote.SpecialChars'] =
   function(...)
     local SpecialChars
     do
@@ -1469,7 +1465,7 @@ _G.package.preload['workshop.concepts.shell.quote.SpecialChars'] =
     end
     return SpecialChars
   end
-_G.package.preload['workshop.concepts.shell.quote.SpaceChars'] =
+package.preload['workshop.concepts.shell.quote.SpaceChars'] =
   function(...)
     local SpaceChars
     do
@@ -1478,7 +1474,7 @@ _G.package.preload['workshop.concepts.shell.quote.SpaceChars'] =
     end
     return SpaceChars
   end
-_G.package.preload['workshop.concepts.list.to_string'] =
+package.preload['workshop.concepts.list.to_string'] =
   function(...)
     local tbl_concat = table.concat
     return
@@ -1489,7 +1485,7 @@ _G.package.preload['workshop.concepts.list.to_string'] =
         return tbl_concat(List, separator_str)
       end
   end
-_G.package.preload['workshop.concepts.list.add_item'] =
+package.preload['workshop.concepts.list.add_item'] =
   function(...)
     local tbl_insert = table.insert
     return
@@ -1497,7 +1493,7 @@ _G.package.preload['workshop.concepts.list.add_item'] =
         tbl_insert(OurList, item)
       end
   end
-_G.package.preload['workshop.concepts.list.add_list'] =
+package.preload['workshop.concepts.list.add_list'] =
   function(...)
     local add_list =
       function(OurList, AnotherList)
@@ -1505,7 +1501,7 @@ _G.package.preload['workshop.concepts.list.add_list'] =
       end
     return add_list
   end
-_G.package.preload['workshop.concepts.words.to_string'] =
+package.preload['workshop.concepts.words.to_string'] =
   function(...)
     local list_to_string = request('!.concepts.list.to_string')
     local to_string =
@@ -1514,7 +1510,7 @@ _G.package.preload['workshop.concepts.words.to_string'] =
       end
     return to_string
   end
-_G.package.preload['workshop.concepts.codec_itness.parse'] =
+package.preload['workshop.concepts.codec_itness.parse'] =
   function(...)
     local Syntax = request('common.Syntax')
     local add_to_list = request('!.concepts.list.add_item')
@@ -1586,7 +1582,7 @@ _G.package.preload['workshop.concepts.codec_itness.parse'] =
       end
     return parse_root
   end
-_G.package.preload['workshop.concepts.codec_itness.compile'] =
+package.preload['workshop.concepts.codec_itness.compile'] =
   function(...)
     local DataWriter = request('compile.DataWriter.Interface')
     local DelimitersWriter =
@@ -1627,7 +1623,7 @@ _G.package.preload['workshop.concepts.codec_itness.compile'] =
       end
     return compile_root
   end
-_G.package.preload['workshop.concepts.codec_itness.common.Syntax'] =
+package.preload['workshop.concepts.codec_itness.common.Syntax'] =
   function(...)
     local Syntax =
       {
@@ -1640,7 +1636,7 @@ _G.package.preload['workshop.concepts.codec_itness.common.Syntax'] =
       }
     return Syntax
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.codec_itness.compile.DataWriter.WriteLeaf'
 ] =
   function(...)
@@ -1680,7 +1676,7 @@ _G.package.preload[
       end
     return WriteLeaf
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.codec_itness.compile.DataWriter.Interface'
 ] =
   function(...)
@@ -1713,7 +1709,7 @@ _G.package.preload[
       }
     return Interface
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.codec_itness.compile.DelimitersWriter.Interface'
 ] =
   function(...)
@@ -1741,7 +1737,7 @@ _G.package.preload[
       }
     return Interface
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.codec_itness.compile.DelimitersWriter.HandleEvent'
 ] =
   function(...)
@@ -1825,7 +1821,7 @@ _G.package.preload[
       end
     return OnEvent
   end
-_G.package.preload['workshop.concepts.Ascii.Chars'] =
+package.preload['workshop.concepts.Ascii.Chars'] =
   function(...)
     local Chars
     do
@@ -1838,7 +1834,7 @@ _G.package.preload['workshop.concepts.Ascii.Chars'] =
     end
     return Chars
   end
-_G.package.preload['workshop.concepts.Ascii.Codes'] =
+package.preload['workshop.concepts.Ascii.Codes'] =
   function(...)
     return
       {
@@ -1885,7 +1881,7 @@ _G.package.preload['workshop.concepts.Ascii.Codes'] =
         closing_brace = 125,
       }
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode'
 ] =
   function(...)
@@ -1905,7 +1901,7 @@ _G.package.preload[
       end
     return listing_from_bytecode
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.lua_bytecode_decompiler.bytecode_from_function'
 ] =
   function(...)
@@ -1918,7 +1914,7 @@ _G.package.preload[
       end
     return bytecode_from_function
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.lua_bytecode_decompiler.bytecode_from_source'
 ] =
   function(...)
@@ -1938,7 +1934,7 @@ _G.package.preload[
       end
     return bytecode_from_source
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode.parse_listing'
 ] =
   function(...)
@@ -2032,7 +2028,7 @@ _G.package.preload[
       end
     return parse_listing
   end
-_G.package.preload[
+package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode.get_listing'
 ] =
   function(...)
@@ -2058,7 +2054,7 @@ _G.package.preload[
       end
     return get_listing
   end
-_G.package.preload['workshop.concepts.StreamIo.Input.File'] =
+package.preload['workshop.concepts.StreamIo.Input.File'] =
   function(...)
     local open_file_for_reading =
       request('!.file_system.file.open_for_reading')
@@ -2096,7 +2092,7 @@ _G.package.preload['workshop.concepts.StreamIo.Input.File'] =
     )
     return Interface
   end
-_G.package.preload['workshop.concepts.StreamIo.Input.String'] =
+package.preload['workshop.concepts.StreamIo.Input.String'] =
   function(...)
     local is_natural = request('!.number.is_natural')
     local Interface =
@@ -2123,7 +2119,7 @@ _G.package.preload['workshop.concepts.StreamIo.Input.String'] =
       }
     return Interface
   end
-_G.package.preload['workshop.concepts.StreamIo.Input.Lines'] =
+package.preload['workshop.concepts.StreamIo.Input.Lines'] =
   function(...)
     local newline
     do
@@ -2157,7 +2153,7 @@ _G.package.preload['workshop.concepts.StreamIo.Input.Lines'] =
     local Interface = { Init = Init, Read = Read, BaseStream = {} }
     return Interface
   end
-_G.package.preload['workshop.concepts.StreamIo.Output.File'] =
+package.preload['workshop.concepts.StreamIo.Output.File'] =
   function(...)
     local open_file_for_writing =
       request('!.file_system.file.open_for_writing')
@@ -2190,7 +2186,7 @@ _G.package.preload['workshop.concepts.StreamIo.Output.File'] =
     )
     return Interface
   end
-_G.package.preload['workshop.concepts.path_name.pathname_to_str'] =
+package.preload['workshop.concepts.path_name.pathname_to_str'] =
   function(...)
     local sep = request('Syntels').separator
     local list_to_str = request('!.concepts.list.to_string')
@@ -2199,7 +2195,7 @@ _G.package.preload['workshop.concepts.path_name.pathname_to_str'] =
         return list_to_str(Pathname, sep)
       end
   end
-_G.package.preload['workshop.concepts.path_name.pathname_from_str'] =
+package.preload['workshop.concepts.path_name.pathname_from_str'] =
   function(...)
     local split_string = request('!.string.split')
     local check_is_absolute = request('is_absolute')
@@ -2249,7 +2245,7 @@ _G.package.preload['workshop.concepts.path_name.pathname_from_str'] =
         end
       end
   end
-_G.package.preload['workshop.concepts.path_name.normalize'] =
+package.preload['workshop.concepts.path_name.normalize'] =
   function(...)
     local pathname_from_str = request('pathname_from_str')
     local pathname_to_str = request('pathname_to_str')
@@ -2258,14 +2254,14 @@ _G.package.preload['workshop.concepts.path_name.normalize'] =
         return pathname_to_str(pathname_from_str(path_name))
       end
   end
-_G.package.preload['workshop.concepts.path_name.is_absolute'] =
+package.preload['workshop.concepts.path_name.is_absolute'] =
   function(...)
     return
       function(Pathname)
         return (Pathname[1] == '')
       end
   end
-_G.package.preload['workshop.concepts.path_name.is_directory'] =
+package.preload['workshop.concepts.path_name.is_directory'] =
   function(...)
     local self_dir
     local upper_dir
@@ -2283,7 +2279,7 @@ _G.package.preload['workshop.concepts.path_name.is_directory'] =
           (last_node == upper_dir)
       end
   end
-_G.package.preload['workshop.concepts.path_name.get_name'] =
+package.preload['workshop.concepts.path_name.get_name'] =
   function(...)
     local is_directory = request('is_directory')
     local self_dir = request('Syntels').self_dir
@@ -2302,11 +2298,11 @@ _G.package.preload['workshop.concepts.path_name.get_name'] =
         return leaf_name
       end
   end
-_G.package.preload['workshop.concepts.path_name.Syntels'] =
+package.preload['workshop.concepts.path_name.Syntels'] =
   function(...)
     return { separator = '/', self_dir = '.', upper_dir = '..' }
   end
-_G.package.preload['callgraph.get_next_ones'] =
+package.preload['callgraph.get_next_ones'] =
   function(...)
     local get_next_ones
     do
@@ -2327,7 +2323,7 @@ _G.package.preload['callgraph.get_next_ones'] =
     end
     return get_next_ones
   end
-_G.package.preload['callgraph.callgraph_to_tgf'] =
+package.preload['callgraph.callgraph_to_tgf'] =
   function(...)
     local AsciiChars = request('!.concepts.Ascii.Chars')
     local IndexSerializer = request('!.concepts.PaddedIndex')
@@ -2401,7 +2397,7 @@ _G.package.preload['callgraph.callgraph_to_tgf'] =
         end
       end
   end
-_G.package.preload['callgraph.callgraph_to_dot'] =
+package.preload['callgraph.callgraph_to_dot'] =
   function(...)
     local Writer = request('callgraph_to_dot.Writer')
     local IndexSerializer = request('!.concepts.PaddedIndex')
@@ -2484,7 +2480,7 @@ _G.package.preload['callgraph.callgraph_to_dot'] =
       end
     return callgraph_to_dot
   end
-_G.package.preload['callgraph.vm_2020.FlowOpcodes'] =
+package.preload['callgraph.vm_2020.FlowOpcodes'] =
   function(...)
     local FlowOpcodes =
       {
@@ -2536,7 +2532,7 @@ _G.package.preload['callgraph.vm_2020.FlowOpcodes'] =
       }
     return FlowOpcodes
   end
-_G.package.preload['callgraph.vm_2020.get_next_ones'] =
+package.preload['callgraph.vm_2020.get_next_ones'] =
   function(...)
     local get_next_ones
     do
@@ -2597,7 +2593,7 @@ _G.package.preload['callgraph.vm_2020.get_next_ones'] =
     end
     return get_next_ones
   end
-_G.package.preload['callgraph.vm_2015.FlowOpcodes'] =
+package.preload['callgraph.vm_2015.FlowOpcodes'] =
   function(...)
     local FlowOpcodes =
       {
@@ -2609,7 +2605,7 @@ _G.package.preload['callgraph.vm_2015.FlowOpcodes'] =
       }
     return FlowOpcodes
   end
-_G.package.preload['callgraph.vm_2015.get_next_ones'] =
+package.preload['callgraph.vm_2015.get_next_ones'] =
   function(...)
     local get_next_ones
     do
@@ -2659,7 +2655,7 @@ _G.package.preload['callgraph.vm_2015.get_next_ones'] =
     end
     return get_next_ones
   end
-_G.package.preload['callgraph.callgraph_to_dot.Spaces'] =
+package.preload['callgraph.callgraph_to_dot.Spaces'] =
   function(...)
     local AsciiChars = request('!.concepts.Ascii.Chars')
     local Spaces =
@@ -2670,7 +2666,7 @@ _G.package.preload['callgraph.callgraph_to_dot.Spaces'] =
       }
     return Spaces
   end
-_G.package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
+package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
   function(...)
     local Syntels = request('Syntels')
     local Writer
@@ -2735,7 +2731,7 @@ _G.package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
         done_write_links = queue_flush,
       }
   end
-_G.package.preload['callgraph.callgraph_to_dot.Syntels'] =
+package.preload['callgraph.callgraph_to_dot.Syntels'] =
   function(...)
     local AsciiChars = request('!.concepts.Ascii.Chars')
     local Syntels =
@@ -2753,7 +2749,7 @@ _G.package.preload['callgraph.callgraph_to_dot.Syntels'] =
       }
     return Syntels
   end
-_G.package.preload['callgraph.callgraph_to_dot.Writer'] =
+package.preload['callgraph.callgraph_to_dot.Writer'] =
   function(...)
     local Syntels = request('Syntels')
     local Spaces = request('Spaces')
