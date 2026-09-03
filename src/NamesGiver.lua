@@ -109,11 +109,6 @@ do
           }
         )
     end
-
-  get_dot_graphname =
-    function(Me, index)
-      return represent_index(Me, index)
-    end
 end
 
 local Methods
@@ -145,7 +140,6 @@ do
       GetListingPathname = get_listing_pathname,
       GetTgfPathname = get_tgf_pathname,
       GetDotPathname = get_dot_pathname,
-      GetDotGraphname = get_dot_graphname,
     }
 end
 

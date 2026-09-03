@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-09-03
 ]]
 
 --[[
@@ -102,11 +102,11 @@ local serialize_links =
   end
 
 local callgraph_to_dot =
-  function(InstructionsGraph, graph_name, OutputStream)
+  function(InstructionsGraph, OutputStream)
     Writer.init(OutputStream)
     IndexSerializer = IndexSerializer.create(#InstructionsGraph)
 
-    Writer.start_graph(graph_name)
+    Writer.start_graph()
 
     serialize_links(InstructionsGraph)
 
@@ -123,6 +123,6 @@ local callgraph_to_dot =
 return callgraph_to_dot
 
 --[[
-  2026 # # # # #
-  2026-09-02
+  2026 # # # # # #
+  2026-09-03
 ]]

@@ -103,10 +103,10 @@ do
     local callgraph_to_dot = request('callgraph.callgraph_to_dot')
     -- Export callgraph to .dot file
     export_to_dot =
-      function(Callgraph, graph_name, file_name)
+      function(Callgraph, file_name)
         local OutputStream = new(OutputFileStream)
         OutputStream:Open(file_name)
-        callgraph_to_dot(Callgraph, graph_name, OutputStream)
+        callgraph_to_dot(Callgraph, OutputStream)
         OutputStream:Close()
       end
   end
@@ -174,15 +174,8 @@ do
 
     for chunk_index, Chunk in ipairs(Chunks) do
       local Callgraph = get_callgraph(Chunk)
-      do
-        local file_name = NamesGiver:GetTgfPathname(chunk_index)
-        export_to_tgf(Callgraph, file_name)
-      end
-      do
-        local graph_name = NamesGiver:GetDotGraphname(chunk_index)
-        local file_name = NamesGiver:GetDotPathname(chunk_index)
-        export_to_dot(Callgraph, graph_name, file_name)
-      end
+      export_to_tgf(Callgraph, NamesGiver:GetTgfPathname(chunk_index))
+      export_to_dot(Callgraph, NamesGiver:GetDotPathname(chunk_index))
     end
   end
 
