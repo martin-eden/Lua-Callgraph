@@ -61,7 +61,7 @@ local get_tgf_pathname
 local get_dot_pathname
 local get_dot_graphname
 do
-  local name_qualifier = request('!.concepts.Ascii.Chars').dot
+  local name_delimiter = request('!.concepts.Ascii.Chars').dot
   local listing_filename = 'listing.is'
   local format_tgf = 'tgf'
   local format_dot = 'dot'
@@ -82,15 +82,6 @@ do
         pathname_to_str({ get_output_dir(Me), listing_filename })
     end
 
-  local get_closure_name =
-    function(Me, index)
-      return
-        list_to_str(
-          { get_source_name(Me), represent_index(Me, index) },
-          name_qualifier
-        )
-    end
-
   get_tgf_pathname =
     function(Me, index)
       return
@@ -98,8 +89,8 @@ do
           {
             get_tgf_dir(Me),
             list_to_str(
-              { get_closure_name(Me, index), format_tgf },
-              name_qualifier
+              { represent_index(Me, index), format_tgf },
+              name_delimiter
             ),
           }
         )
@@ -112,8 +103,8 @@ do
           {
             get_dot_dir(Me),
             list_to_str(
-              { get_closure_name(Me, index), format_dot },
-              name_qualifier
+              { represent_index(Me, index), format_dot },
+              name_delimiter
             ),
           }
         )
@@ -121,7 +112,7 @@ do
 
   get_dot_graphname =
     function(Me, index)
-      return get_closure_name(Me, index)
+      return represent_index(Me, index)
     end
 end
 
