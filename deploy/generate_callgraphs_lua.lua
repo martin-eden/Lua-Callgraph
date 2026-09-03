@@ -45,6 +45,7 @@ _G.package.preload['NamesGiver'] =
     local get_dot_graphname
     do
       local name_qualifier = request('!.concepts.Ascii.Chars').dot
+      local listing_filename = 'listing.is'
       local format_tgf = 'tgf'
       local format_dot = 'dot'
       get_tgf_dir =
@@ -54,6 +55,11 @@ _G.package.preload['NamesGiver'] =
       get_dot_dir =
         function(Me)
           return pathname_to_str({ get_output_dir(Me), format_dot })
+        end
+      get_listing_pathname =
+        function(Me)
+          return
+            pathname_to_str({ get_output_dir(Me), listing_filename })
         end
       local get_closure_name =
         function(Me, index)
@@ -111,8 +117,10 @@ _G.package.preload['NamesGiver'] =
           SetSourceName = set_source_name,
           SetOutputDir = set_output_dir,
           SetNumItems = set_num_items,
+          GetOutputDir = get_output_dir,
           GetTgfDir = get_tgf_dir,
           GetDotDir = get_dot_dir,
+          GetListingPathname = get_listing_pathname,
           GetTgfPathname = get_tgf_pathname,
           GetDotPathname = get_dot_pathname,
           GetDotGraphname = get_dot_graphname,
@@ -130,17 +138,31 @@ _G.package.preload['generate_callgraphs_lua'] =
       space = AsciiChars.space
       newline = AsciiChars.newline
     end
-    local get_chunks
+    local export_listing
     do
       local get_bytecode_listing =
         request('!.programs.get_bytecode_listing')
-      local StringStream = request('!.concepts.StreamIo.Output.String')
-      local itness_from_str = request('!.convert.itness_from_str')
-      get_chunks =
-        function(sourcecode_pathname)
-          local StringStream = new(StringStream)
-          get_bytecode_listing({ sourcecode_pathname }, StringStream)
-          return itness_from_str(StringStream:GetString())
+      local FileStream = request('!.concepts.StreamIo.Output.File')
+      export_listing =
+        function(sourcecode_pathname, listing_pathname)
+          local ListingStream = new(FileStream)
+          ListingStream:Open(listing_pathname)
+          get_bytecode_listing({ sourcecode_pathname }, ListingStream)
+          ListingStream:Close()
+        end
+    end
+    local load_listing
+    do
+      local parse_itness = request('!.concepts.codec_itness.parse')
+      local FileStream = request('!.concepts.StreamIo.Input.File')
+      load_listing =
+        function(listing_pathname)
+          local Result
+          local ListingStream = new(FileStream)
+          ListingStream:Open(listing_pathname)
+          Result = parse_itness(ListingStream)
+          ListingStream:Close()
+          return Result
         end
     end
     local get_callgraph
@@ -220,11 +242,17 @@ Usage: <lua_file_name> <output_dir>
       NamesGiver:SetOutputDir(output_dir_name)
       do
         local recreate_dir = request('!.file_system.directory.recreate')
+        recreate_dir(NamesGiver:GetOutputDir())
         recreate_dir(NamesGiver:GetTgfDir())
         recreate_dir(NamesGiver:GetDotDir())
       end
       do
-        local Chunks = get_chunks(sourcecode_pathname)
+        local Chunks
+        do
+          local listing_pathname = NamesGiver:GetListingPathname()
+          export_listing(sourcecode_pathname, listing_pathname)
+          Chunks = load_listing(listing_pathname)
+        end
         NamesGiver:SetNumItems(#Chunks)
         for chunk_index, Chunk in ipairs(Chunks) do
           local Callgraph = get_callgraph(Chunk)
@@ -922,6 +950,15 @@ _G.package.preload['workshop.file_system.file.exists'] =
       end
     return pathname_exists
   end
+_G.package.preload['workshop.file_system.file.open_for_reading'] =
+  function(...)
+    local open_file = request('open')
+    local open_for_reading =
+      function(pathname)
+        return open_file(pathname, 'rb')
+      end
+    return open_for_reading
+  end
 _G.package.preload['workshop.file_system.file.remove'] =
   function(...)
     local file_exists = request('exists')
@@ -1024,19 +1061,6 @@ _G.package.preload['workshop.string.split'] =
         return Result
       end
     return split_string
-  end
-_G.package.preload['workshop.convert.itness_from_str'] =
-  function(...)
-    local StringInputStream =
-      request('!.concepts.StreamIo.Input.String')
-    local itness_parse = request('!.concepts.codec_itness.parse')
-    local itness_from_string =
-      function(str)
-        local StringInputStream = new(StringInputStream)
-        StringInputStream:Init(str)
-        return itness_parse(StringInputStream)
-      end
-    return itness_from_string
   end
 _G.package.preload['workshop.convert.file_to_str'] =
   function(...)
@@ -2050,6 +2074,44 @@ _G.package.preload[
       end
     return get_listing
   end
+_G.package.preload['workshop.concepts.StreamIo.Input.File'] =
+  function(...)
+    local open_file_for_reading =
+      request('!.file_system.file.open_for_reading')
+    local close_file = request('!.file_system.file.close')
+    local is_natural = request('!.number.is_natural')
+    local Interface =
+      {
+        Open =
+          function(Me, pathname)
+            Me.File = open_file_for_reading(pathname)
+          end,
+        Close =
+          function(Me)
+            close_file(Me.File)
+          end,
+        Read =
+          function(Me, num_bytes)
+            assert(is_natural(num_bytes))
+            local data_str = Me.File:read(num_bytes)
+            if is_nil(data_str) then
+              data_str = ''
+            end
+            return data_str
+          end,
+        File = nil,
+      }
+    setmetatable(
+      Interface,
+      {
+        __gc =
+          function(Me)
+            Me:Close()
+          end,
+      }
+    )
+    return Interface
+  end
 _G.package.preload['workshop.concepts.StreamIo.Input.String'] =
   function(...)
     local is_natural = request('!.number.is_natural')
@@ -2143,24 +2205,6 @@ _G.package.preload['workshop.concepts.StreamIo.Output.File'] =
       }
     )
     return Interface
-  end
-_G.package.preload['workshop.concepts.StreamIo.Output.String'] =
-  function(...)
-    local list_to_string = request('!.concepts.list.to_string')
-    local list_add_item = request('!.concepts.list.add_item')
-    return
-      {
-        GetString =
-          function(Me)
-            return list_to_string(Me.Chunks)
-          end,
-        Write =
-          function(Me, data_str)
-            assert_string(data_str)
-            list_add_item(Me.Chunks, data_str)
-          end,
-        Chunks = {},
-      }
   end
 _G.package.preload['workshop.concepts.path_name.pathname_to_str'] =
   function(...)
