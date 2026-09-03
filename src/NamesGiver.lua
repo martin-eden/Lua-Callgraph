@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-09-03
 ]]
 
 --[[
@@ -62,6 +62,7 @@ local get_dot_pathname
 local get_dot_graphname
 do
   local name_qualifier = request('!.concepts.Ascii.Chars').dot
+  local listing_filename = 'listing.is'
   local format_tgf = 'tgf'
   local format_dot = 'dot'
 
@@ -73,6 +74,12 @@ do
   get_dot_dir =
     function(Me)
       return pathname_to_str({ get_output_dir(Me), format_dot })
+    end
+
+  get_listing_pathname =
+    function(Me)
+      return
+        pathname_to_str({ get_output_dir(Me), listing_filename })
     end
 
   local get_closure_name =
@@ -140,9 +147,11 @@ do
       SetOutputDir = set_output_dir,
       SetNumItems = set_num_items,
 
+      GetOutputDir = get_output_dir,
       GetTgfDir = get_tgf_dir,
       GetDotDir = get_dot_dir,
 
+      GetListingPathname = get_listing_pathname,
       GetTgfPathname = get_tgf_pathname,
       GetDotPathname = get_dot_pathname,
       GetDotGraphname = get_dot_graphname,
@@ -153,6 +162,6 @@ end
 return Methods
 
 --[[
-  2026 # #
-  2026-09-02
+  2026 # # #
+  2026-09-03
 ]]

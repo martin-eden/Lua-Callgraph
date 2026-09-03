@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-09-03
 ]]
 
 require('workshop.base')
@@ -15,22 +15,31 @@ do
   newline = AsciiChars.newline
 end
 
---[[
-  Get parsed closure listings from source code file
-]]
-local get_chunks
+local export_listing
 do
   local get_bytecode_listing = request('!.programs.get_bytecode_listing')
-  local StringStream = request('!.concepts.StreamIo.Output.String')
-  local itness_from_str = request('!.convert.itness_from_str')
+  local FileStream = request('!.concepts.StreamIo.Output.File')
+  export_listing =
+    function(sourcecode_pathname, listing_pathname)
+      local ListingStream = new(FileStream)
+      ListingStream:Open(listing_pathname)
+      get_bytecode_listing({ sourcecode_pathname }, ListingStream)
+      ListingStream:Close()
+    end
+end
 
-  get_chunks =
-    function(sourcecode_pathname)
-      local StringStream = new(StringStream)
-
-      get_bytecode_listing({ sourcecode_pathname }, StringStream)
-
-      return itness_from_str(StringStream:GetString())
+local load_listing
+do
+  local parse_itness = request('!.concepts.codec_itness.parse')
+  local FileStream = request('!.concepts.StreamIo.Input.File')
+  load_listing =
+    function(listing_pathname)
+      local Result
+      local ListingStream = new(FileStream)
+      ListingStream:Open(listing_pathname)
+      Result = parse_itness(ListingStream)
+      ListingStream:Close()
+      return Result
     end
 end
 
@@ -148,12 +157,18 @@ do
 
   do
     local recreate_dir = request('!.file_system.directory.recreate')
+    recreate_dir(NamesGiver:GetOutputDir())
     recreate_dir(NamesGiver:GetTgfDir())
     recreate_dir(NamesGiver:GetDotDir())
   end
 
   do
-    local Chunks = get_chunks(sourcecode_pathname)
+    local Chunks
+    do
+      local listing_pathname = NamesGiver:GetListingPathname()
+      export_listing(sourcecode_pathname, listing_pathname)
+      Chunks = load_listing(listing_pathname)
+    end
 
     NamesGiver:SetNumItems(#Chunks)
 
@@ -175,6 +190,6 @@ do
 end
 
 --[[
-  2026 # # # #
-  2026-09-02
+  2026 # # # # #
+  2026-09-03
 ]]
