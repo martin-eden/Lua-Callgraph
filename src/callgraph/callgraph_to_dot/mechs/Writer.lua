@@ -148,8 +148,12 @@ do
   local start_graph_str = Syntels.start_graph
   start_graph =
     function(graph_name)
-      write_cont(digraph)
-      write_final(quote(graph_name))
+      if graph_name then
+        write_cont(digraph)
+        write_final(quote(graph_name))
+      else
+        write_final(digraph)
+      end
       write_final(start_graph_str)
     end
 end
