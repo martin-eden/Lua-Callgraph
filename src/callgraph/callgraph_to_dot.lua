@@ -108,13 +108,13 @@ local callgraph_to_dot =
 
     Writer.start_graph()
 
-    serialize_links(InstructionsGraph)
-
-    Writer.write_empty_line()
-
     for instruction_index, Instruction in ipairs(InstructionsGraph) do
       Writer.write_node(get_node_name(instruction_index), Instruction.label)
     end
+
+    Writer.write_empty_line()
+
+    serialize_links(InstructionsGraph)
 
     Writer.end_graph()
   end
