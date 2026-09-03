@@ -26,7 +26,7 @@
   several edges. Also it merges chains into one .dot statement.
 ]]
 
-local Writer = request('callgraph_to_dot.mechs.Writer')
+local Writer = request('callgraph_to_dot.Writer')
 local IndexSerializer = request('!.concepts.PaddedIndex')
 
 local get_node_name =

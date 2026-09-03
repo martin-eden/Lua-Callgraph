@@ -19,8 +19,8 @@
   This code also wraps long lines when writing link chains.
 ]]
 
-local Syntels = request('^.concepts.Syntels')
-local Spaces = request('^.concepts.Spaces')
+local Syntels = request('Syntels')
+local Spaces = request('Spaces')
 
 local LinksWriter = request('LinksWriter')
 

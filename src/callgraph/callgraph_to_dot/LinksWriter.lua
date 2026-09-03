@@ -21,7 +21,7 @@
 ]]
 
 -- Imports:
-local Syntels = request('^.concepts.Syntels')
+local Syntels = request('Syntels')
 
 -- Set in init()
 local Writer
