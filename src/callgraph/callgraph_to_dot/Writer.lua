@@ -19,6 +19,20 @@
   This code also wraps long lines when writing link chains.
 ]]
 
+--[[
+  Contract
+
+  Basically contract is the same as for our Lua table serializer:
+  output will only contain tokens you asked us to write and
+  whitespaces we've added between them as we please.
+
+  But we can have internal state and we may export whitespace-writing
+  methods.
+
+  We may also export convenience methods as write_links() that
+  write more than one token per call.
+]]
+
 local Syntels = request('Syntels')
 local Spaces = request('Spaces')
 
