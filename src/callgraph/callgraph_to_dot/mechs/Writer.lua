@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-09-03
 ]]
 
 --[[
@@ -16,7 +16,7 @@
 ]]
 
 --[[
-  This code also wraps long lines when writing chains.
+  This code also wraps long lines when writing link chains.
 ]]
 
 local Syntels = request('^.concepts.Syntels')
@@ -144,12 +144,10 @@ end
 
 local start_graph
 do
-  local strict = Syntels.kw_strict
   local digraph = Syntels.kw_digraph
   local start_graph_str = Syntels.start_graph
   start_graph =
     function(graph_name)
-      write_cont(strict)
       write_cont(digraph)
       write_final(quote(graph_name))
       write_final(start_graph_str)
@@ -226,6 +224,6 @@ Methods =
 return Methods
 
 --[[
-  2026 # #
-  2026-09-02
+  2026 # # #
+  2026-09-03
 ]]

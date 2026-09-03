@@ -1,8 +1,8 @@
--- Named syntax elements of .dot format
+-- Named syntax elements of .dot format that we're using
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-07-31
+  Last mod.: 2026-09-03
 ]]
 
 -- Imports:
@@ -10,7 +10,6 @@ local AsciiChars = request('!.concepts.Ascii.Chars')
 
 local Syntels =
   {
-    kw_strict = 'strict',
     kw_digraph = 'digraph',
     kw_label = 'label',
 
