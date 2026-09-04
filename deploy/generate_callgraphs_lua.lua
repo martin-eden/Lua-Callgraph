@@ -2304,7 +2304,7 @@ package.preload['workshop.concepts.path_name.Syntels'] =
   end
 package.preload['callgraph.get_next_ones'] =
   function(...)
-    local get_next_ones
+    local get_next_offs
     do
       local use_vm_2015
       local use_vm_2020
@@ -2316,12 +2316,21 @@ package.preload['callgraph.get_next_ones'] =
         use_vm_2020 = is_lua_54 or is_lua_55
       end
       if use_vm_2015 then
-        get_next_ones = request('vm_2015.get_next_ones')
+        get_next_offs = request('vm_2015.get_next_offs')
       elseif use_vm_2020 then
-        get_next_ones = request('vm_2020.get_next_ones')
+        get_next_offs = request('vm_2020.get_next_offs')
       end
     end
-    return get_next_ones
+    local add_to_list = request('!.concepts.list.add_item')
+    return
+      function(instruction_index, Instruction)
+        local NextOffs = get_next_offs(Instruction)
+        local NextOnes = {}
+        for _, offs in ipairs(NextOffs) do
+          add_to_list(NextOnes, instruction_index + offs)
+        end
+        return NextOnes
+      end
   end
 package.preload['callgraph.callgraph_to_tgf'] =
   function(...)
@@ -2532,66 +2541,53 @@ package.preload['callgraph.vm_2020.FlowOpcodes'] =
       }
     return FlowOpcodes
   end
-package.preload['callgraph.vm_2020.get_next_ones'] =
+package.preload['callgraph.vm_2020.get_next_offs'] =
   function(...)
-    local get_next_ones
+    local Terminators_Map
+    local opcode_lfalseskip
+    local opcode_jmp
+    local opcode_tforprep
+    local BasicForks_Map
+    local Loopbacks_Map
+    local opcode_forprep
     do
-      local Terminators_Map
-      local opcode_lfalseskip
-      local opcode_jmp
-      local opcode_tforprep
-      local BasicForks_Map
-      local Loopbacks_Map
-      local opcode_forprep
-      do
-        local FlowOpcodes = request('FlowOpcodes')
-        local map_values = request('!.table.map_values')
-        Terminators_Map = map_values(FlowOpcodes[1])
-        opcode_lfalseskip = FlowOpcodes[2]
-        opcode_jmp = FlowOpcodes[3]
-        opcode_tforprep = FlowOpcodes[4]
-        BasicForks_Map = map_values(FlowOpcodes[5])
-        Loopbacks_Map = map_values(FlowOpcodes[6])
-        opcode_forprep = FlowOpcodes[7]
-      end
-      local add_to_list = request('!.concepts.list.add_item')
-      get_next_ones =
-        function(instruction_index, Instruction)
-          local NextOnes = {}
-          local opcode = Instruction[1]
-          local next_instruction = instruction_index + 1
-          if Terminators_Map[opcode] then
-            ;
-          elseif (opcode == opcode_lfalseskip) then
-            add_to_list(NextOnes, next_instruction + 1)
-          elseif (opcode == opcode_jmp) then
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[2])
-            )
-          elseif (opcode == opcode_tforprep) then
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[3])
-            )
-          elseif BasicForks_Map[opcode] then
-            add_to_list(NextOnes, next_instruction)
-            add_to_list(NextOnes, next_instruction + 1)
-          elseif Loopbacks_Map[opcode] then
-            add_to_list(
-              NextOnes, next_instruction - tonumber(Instruction[3])
-            )
-            add_to_list(NextOnes, next_instruction)
-          elseif (opcode == opcode_forprep) then
-            add_to_list(NextOnes, next_instruction)
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[3]) + 1
-            )
-          else
-            add_to_list(NextOnes, next_instruction)
-          end
-          return NextOnes
-        end
+      local FlowOpcodes = request('FlowOpcodes')
+      local map_values = request('!.table.map_values')
+      Terminators_Map = map_values(FlowOpcodes[1])
+      opcode_lfalseskip = FlowOpcodes[2]
+      opcode_jmp = FlowOpcodes[3]
+      opcode_tforprep = FlowOpcodes[4]
+      BasicForks_Map = map_values(FlowOpcodes[5])
+      Loopbacks_Map = map_values(FlowOpcodes[6])
+      opcode_forprep = FlowOpcodes[7]
     end
-    return get_next_ones
+    local add_to_list = request('!.concepts.list.add_item')
+    return
+      function(Instruction)
+        local NextOffs = {}
+        local opcode = Instruction[1]
+        if Terminators_Map[opcode] then
+          ;
+        elseif (opcode == opcode_lfalseskip) then
+          add_to_list(NextOffs, 2)
+        elseif (opcode == opcode_jmp) then
+          add_to_list(NextOffs, tonumber(Instruction[2]) + 1)
+        elseif (opcode == opcode_tforprep) then
+          add_to_list(NextOffs, tonumber(Instruction[3]) + 1)
+        elseif BasicForks_Map[opcode] then
+          add_to_list(NextOffs, 1)
+          add_to_list(NextOffs, 2)
+        elseif Loopbacks_Map[opcode] then
+          add_to_list(NextOffs, -tonumber(Instruction[3]) + 1)
+          add_to_list(NextOffs, 1)
+        elseif (opcode == opcode_forprep) then
+          add_to_list(NextOffs, 1)
+          add_to_list(NextOffs, tonumber(Instruction[3]) + 2)
+        else
+          add_to_list(NextOffs, 1)
+        end
+        return NextOffs
+      end
   end
 package.preload['callgraph.vm_2015.FlowOpcodes'] =
   function(...)
@@ -2605,55 +2601,44 @@ package.preload['callgraph.vm_2015.FlowOpcodes'] =
       }
     return FlowOpcodes
   end
-package.preload['callgraph.vm_2015.get_next_ones'] =
+package.preload['callgraph.vm_2015.get_next_offs'] =
   function(...)
-    local get_next_ones
+    local Terminators_Map
+    local opcode_jmp
+    local BasicForks_Map
+    local Loopbacks_Map
+    local opcode_forprep
     do
-      local Terminators_Map
-      local opcode_jmp
-      local BasicForks_Map
-      local Loopbacks_Map
-      local opcode_forprep
-      do
-        local FlowOpcodes = request('FlowOpcodes')
-        local map_values = request('!.table.map_values')
-        Terminators_Map = map_values(FlowOpcodes[1])
-        opcode_jmp = FlowOpcodes[2]
-        BasicForks_Map = map_values(FlowOpcodes[3])
-        Loopbacks_Map = map_values(FlowOpcodes[4])
-        opcode_forprep = FlowOpcodes[5]
-      end
-      local add_to_list = request('!.concepts.list.add_item')
-      get_next_ones =
-        function(instruction_index, Instruction)
-          local NextOnes = {}
-          local opcode = Instruction[1]
-          local next_instruction = instruction_index + 1
-          if Terminators_Map[opcode] then
-            ;
-          elseif (opcode == opcode_jmp) then
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[3])
-            )
-          elseif BasicForks_Map[opcode] then
-            add_to_list(NextOnes, next_instruction)
-            add_to_list(NextOnes, next_instruction + 1)
-          elseif Loopbacks_Map[opcode] then
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[3])
-            )
-            add_to_list(NextOnes, next_instruction)
-          elseif (opcode == opcode_forprep) then
-            add_to_list(
-              NextOnes, next_instruction + tonumber(Instruction[3])
-            )
-          else
-            add_to_list(NextOnes, next_instruction)
-          end
-          return NextOnes
-        end
+      local FlowOpcodes = request('FlowOpcodes')
+      local map_values = request('!.table.map_values')
+      Terminators_Map = map_values(FlowOpcodes[1])
+      opcode_jmp = FlowOpcodes[2]
+      BasicForks_Map = map_values(FlowOpcodes[3])
+      Loopbacks_Map = map_values(FlowOpcodes[4])
+      opcode_forprep = FlowOpcodes[5]
     end
-    return get_next_ones
+    local add_to_list = request('!.concepts.list.add_item')
+    return
+      function(Instruction)
+        local NextOffs = {}
+        local opcode = Instruction[1]
+        if Terminators_Map[opcode] then
+          ;
+        elseif (opcode == opcode_jmp) then
+          add_to_list(NextOffs, tonumber(Instruction[3]) + 1)
+        elseif BasicForks_Map[opcode] then
+          add_to_list(NextOffs, 1)
+          add_to_list(NextOffs, 2)
+        elseif Loopbacks_Map[opcode] then
+          add_to_list(NextOffs, tonumber(Instruction[3]) + 1)
+          add_to_list(NextOffs, 1)
+        elseif (opcode == opcode_forprep) then
+          add_to_list(NextOffs, tonumber(Instruction[3]) + 1)
+        else
+          add_to_list(NextOffs, 1)
+        end
+        return NextOffs
+      end
   end
 package.preload['callgraph.callgraph_to_dot.Spaces'] =
   function(...)
