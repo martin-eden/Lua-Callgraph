@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-09-05
 ]]
 
 --[[
@@ -23,9 +23,6 @@
 -- Imports:
 local Syntels = request('Syntels')
 
--- Set in init()
-local Writer
-
 --[[
   Queue storage format:
 
@@ -36,68 +33,63 @@ local Writer
 local Queue = { [1] = false, [2] = false }
 
 local queue_add =
-  function(name)
+  function(Me, name)
     if Queue[1] then
-      Writer.write_cont(Queue[1])
-      Writer.write_arrow()
+      Me:Write(Queue[1])
+      Me:Arrow()
     end
     Queue[1], Queue[2] = Queue[2], name
   end
 
 local queue_flush =
-  function()
+  function(Me)
     if Queue[1] then
-      Writer.write_cont(Queue[1])
-      Writer.write_arrow()
-      Writer.write(Queue[2])
-      Writer.end_statement()
+      Me:Write(Queue[1])
+      Me:Arrow()
+      Me:Write(Queue[2])
+      Me:EndStatement()
     end
     Queue[1], Queue[2] = false, false
   end
 
-local write_links =
-  function(source_name, DestNames)
-    source_name = Writer.quote(source_name)
+local quote = request('quote')
+
+local Link =
+  function(Me, source_name, DestNames)
+    source_name = quote(source_name)
     if (#DestNames == 0) then
-      queue_flush()
+      queue_flush(Me)
     elseif (#DestNames == 1) then
-      local dest_name = Writer.quote(DestNames[1])
+      local dest_name = quote(DestNames[1])
 
       if (source_name == Queue[2]) then
-        queue_add(dest_name)
+        queue_add(Me, dest_name)
       else
-        queue_flush()
-        Writer.start_statement()
-        queue_add(source_name)
-        queue_add(dest_name)
+        queue_flush(Me)
+        queue_add(Me, source_name)
+        queue_add(Me, dest_name)
       end
     else
       if (source_name == Queue[2]) then
-        Writer.write_cont(Queue[1])
-        Writer.write_arrow()
-        Writer.write_cont(Queue[2])
-        Writer.write_arrow()
+        Me:Write(Queue[1])
+        Me:Arrow()
+        Me:Write(Queue[2])
         Queue[1], Queue[2] = false, false
-        Writer.write_subgraph(DestNames)
       else
-        queue_flush()
-        Writer.start_statement()
-        Writer.write_cont(source_name)
-        Writer.write_arrow()
-        Writer.write_subgraph(DestNames)
+        queue_flush(Me)
+        Me:Write(source_name)
       end
+      Me:Arrow()
+      Me:Subgraph(DestNames)
+      Me:EndStatement()
     end
   end
 
 -- Export:
 return
   {
-    init =
-      function(Arg_Writer)
-        Writer = Arg_Writer
-      end,
-    write_links = write_links,
-    done_write_links = queue_flush,
+    Link = Link,
+    DoneLinks = queue_flush,
   }
 
 --[[

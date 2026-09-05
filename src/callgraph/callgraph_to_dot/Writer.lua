@@ -2,21 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-03
-]]
-
---[[
-  This module exports low-level and high-level serialization routines.
-
-  We export low-level routines because we use LinksWriter.
-
-  We use LinksWriter because we want some structure processing.
-  And that structure processing means cognitive load.
-  Not for long and simple module.
-]]
-
---[[
-  This code also wraps long lines when writing link chains.
+  Last mod.: 2026-09-05
 ]]
 
 --[[
@@ -33,215 +19,243 @@
   write more than one token per call.
 ]]
 
+--[[
+  Internal state
+
+    1 [t] -- output stream instance
+    2 [i] -- current line length
+    3 [s] -- previous token
+    4 [t] -- indent instance
+]]
+
 local Syntels = request('Syntels')
 local Spaces = request('Spaces')
 
 local LinksWriter = request('LinksWriter')
 
-local OutputStream
-
--- Tracking line length for wrapping
-local line_len = 0
-
-local write =
-  function(str)
-    OutputStream:Write(str)
-    line_len = line_len + #str
-  end
-
-local write_cont
-do
-  local line_item_separator = Spaces.space
-  write_cont =
-    function(str)
-      write(str)
-      write(line_item_separator)
-    end
-end
-
-local write_final
+local EndLine
+local EmptyLine
 do
   local line_separator = Spaces.newline
-  write_final =
-    function(str)
-      write(str)
-      write(line_separator)
-      line_len = 0
+  EndLine =
+    function(Me)
+      if (Me[2] == 0) then return end
+
+      Me[1]:Write(line_separator)
+      Me[2] = 0
+      Me[3] = ''
+    end
+
+  EmptyLine =
+    function(Me)
+      Me:EndLine()
+      Me[1]:Write(line_separator)
     end
 end
 
-local write_empty_line =
-  function()
-    write_final('')
-  end
-
-local write_indent
+local Write
 do
-  local space = Spaces.space
-  local indent = space .. space .. space
-  write_indent =
-    function()
-      write(indent)
-    end
-end
-
-local quote
-do
-  local quote_char = Syntels.quote
-  quote =
-    function(str)
-      return quote_char .. str .. quote_char
-    end
-end
-
-local start_statement =
-  function()
-    write_indent()
-  end
-
-local end_statement
-do
-  local end_statement_str = Syntels.end_statement
-  end_statement =
-    function()
-      write_final(end_statement_str)
-    end
-end
-
-local start_attr
-do
-  local start_attr_str = Syntels.start_attr
-  start_attr =
-    function()
-      write_cont(start_attr_str)
-    end
-end
-
-local end_attr
-do
-  local end_attr_str = Syntels.end_attr
-  end_attr =
-    function()
-      write(end_attr_str)
-    end
-end
-
-local write_arrow
-do
-  local wrapping_len = 52
+  local item_separator = Spaces.space
+  local sep_len = #item_separator
+  local is_alnum = request('!.concepts.Ascii.is_alnum')
+  local str_sub = string.sub
+  local str_byte = string.byte
+  local end_statement = Syntels.end_statement
+  local ends_with = request('!.string.ends_with')
+  local wrapping_len = 53
   local arrow = Syntels.arrow
-  write_arrow =
-    function()
-      if (line_len > wrapping_len) then
-        write_final(arrow)
-        write_indent()
-        write_indent()
-      else
-        write_cont(arrow)
+  Write =
+    function(Me, token)
+      local OutputStream = Me[1]
+      local line_len = Me[2]
+      local prev_token = Me[3]
+
+      if (line_len == 0) then
+        OutputStream:Write(Me[4]:ToString())
       end
+
+      if
+        (line_len > wrapping_len) and
+        (
+          (prev_token == arrow) or
+          (prev_token == end_statement)
+        )
+      then
+        Me:EndLine()
+        local Indent = Me[4]
+        OutputStream:Write(Indent:ToString())
+        OutputStream:Write(Indent:GetIndentChunk())
+      else
+        local write_sep = false
+
+        if (prev_token ~= '') then
+          local prev_char_code = str_byte(str_sub(prev_token, -1, -1))
+          local next_char_code = str_byte(str_sub(token, 1, 1))
+          write_sep =
+            -- Separation is strictly needed say between "strict" and "digraph"
+            (is_alnum(prev_char_code) and is_alnum(next_char_code)) or
+            -- Opportunistically add separation to anything except ";" and " "
+            (
+              (token ~= end_statement) and
+              not ends_with(prev_token, item_separator)
+            )
+        end
+
+        if write_sep then
+          OutputStream:Write(item_separator)
+          Me[2] = Me[2] + sep_len
+        end
+      end
+
+      OutputStream:Write(token)
+
+      Me[2] = Me[2] + #token
+      Me[3] = token
     end
 end
 
-local write_label
+local EndStatement
 do
+  local end_statement = Syntels.end_statement
+  EndStatement =
+    function(Me)
+      Me:Write(end_statement)
+      Me:EndLine()
+    end
+end
+
+local Arrow
+do
+  local arrow = Syntels.arrow
+  Arrow =
+    function(Me)
+      Me:Write(arrow)
+    end
+end
+
+local quote = request('quote')
+
+local Label
+do
+  local start_attr = Syntels.start_attr
+  local end_attr = Syntels.end_attr
   local label_kw = Syntels.kw_label
   local assign = Syntels.assign
-  write_label =
-    function(label)
-      start_attr()
-      write_cont(label_kw)
-      write_cont(assign)
-      write_cont(label)
-      end_attr()
+  Label =
+    function(Me, label)
+      Me:Write(start_attr)
+      Me:Write(label_kw)
+      Me:Write(assign)
+      Me:Write(quote(label))
+      Me:Write(end_attr)
     end
 end
 
-local start_graph
+local StartGraph
 do
   local digraph = Syntels.kw_digraph
-  local start_graph_str = Syntels.start_graph
-  start_graph =
-    function(graph_name)
+  local start_graph = Syntels.start_graph
+  StartGraph =
+    function(Me, graph_name)
+      Me:Write(digraph)
       if graph_name then
-        write_cont(digraph)
-        write_final(quote(graph_name))
-      else
-        write_final(digraph)
+        Me:Write(quote(graph_name))
       end
-      write_final(start_graph_str)
+      Me:EndLine()
+      Me:Write(start_graph)
+      Me:EndLine()
+      Me[4]:Inc()
     end
 end
 
-local end_graph
+local EndGraph
 do
-  local end_graph_str = Syntels.end_graph
-  end_graph =
-    function()
-      write_final(end_graph_str)
+  local end_graph = Syntels.end_graph
+  EndGraph =
+    function(Me)
+      Me[4]:Dec()
+      Me:EndLine()
+      Me:Write(end_graph)
+      Me:EndLine()
     end
 end
 
-local write_node =
-  function(name, label)
-    start_statement()
-    write_cont(quote(name))
-    write_label(quote(label))
-    end_statement()
+local Node =
+  function(Me, name, label)
+    Me:Write(quote(name))
+    Me:Label(label)
+    Me:EndStatement()
   end
 
-local write_subgraph
+local Subgraph
 do
   local start_graph = Syntels.start_graph
   local end_graph = Syntels.end_graph
-  write_subgraph =
-    function(DestNames)
-      write_cont(start_graph)
+  Subgraph =
+    function(Me, DestNames)
+      Me:Write(start_graph)
       for _, dest_name in ipairs(DestNames) do
-        write_cont(quote(dest_name))
+        Me:Write(quote(dest_name))
       end
-      write(end_graph)
-      end_statement()
+      Me:Write(end_graph)
     end
 end
 
 local Methods
+
+local create
+do
+  local attach_methods = request('!.table.attach_methods')
+  local indent = '   '
+  local Indent = request('!.concepts.Indent')
+  create =
+    function(Arg_OutputStream)
+      OutputStream = Arg_OutputStream
+
+      Indent = Indent.create()
+      Indent:SetIndentChunk(indent)
+
+      local Core =
+        {
+          [1] = Arg_OutputStream,
+          [2] = 0,
+          [3] = '',
+          [4] = Indent,
+        }
+      attach_methods(Core, Methods)
+
+      return Core
+    end
+end
+
 Methods =
   {
-    init =
-      function(Arg_OutputStream)
-        OutputStream = Arg_OutputStream
-        LinksWriter.init(Methods)
-      end,
+    create = create,
 
-    write = write,
-    write_cont = write_cont,
-    write_final = write_final,
+    Write = Write,
+    EndLine = EndLine,
 
-    write_empty_line = write_empty_line,
+    EmptyLine = EmptyLine,
 
-    quote = quote,
+    EndStatement = EndStatement,
 
-    start_statement = start_statement,
-    end_statement = end_statement,
-    start_attr = start_attr,
-    end_attr = end_attr,
-    write_arrow = write_arrow,
-    write_label = write_label,
+    Arrow = Arrow,
+    Label = Label,
 
-    start_graph = start_graph,
-    end_graph = end_graph,
+    StartGraph = StartGraph,
+    EndGraph = EndGraph,
 
-    write_node = write_node,
-    write_subgraph = write_subgraph,
+    Node = Node,
+    Subgraph = Subgraph,
 
-    write_links = LinksWriter.write_links,
-    done_write_links = LinksWriter.done_write_links,
+    Link = LinksWriter.Link,
+    DoneLinks = LinksWriter.DoneLinks,
   }
 
 -- Export:
 return Methods
 
 --[[
-  2026 # # #
-  2026-09-03
+  2026 # # # #
+  2026-09-05
 ]]

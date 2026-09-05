@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-03
+  Last mod.: 2026-09-05
 ]]
 
 --[[
@@ -34,29 +34,21 @@ local get_node_name =
     return IndexSerializer:ToString(index)
   end
 
-local write_links
+local write_link
 do
   local add_to_list = request('!.concepts.list.add_item')
-  write_links =
+  write_link =
     function(index, NextOnes)
       local NextOneNames = { }
       for _, next_one_index in ipairs(NextOnes) do
         add_to_list(NextOneNames, get_node_name(next_one_index))
       end
-      Writer.write_links(get_node_name(index), NextOneNames)
+      Writer:Link(get_node_name(index), NextOneNames)
     end
 end
 
 local serialize_links =
   function(InstructionsGraph)
-    --[[
-      For simplicity we can just call write_links() in cycle.
-      It serializes chains nicely. But we want to break chain
-      if node is referenced more than once.
-
-      That's why we have this function.
-    ]]
-
     local NumInLinks_Map = { }
 
     for instruction_index in ipairs(InstructionsGraph) do
@@ -84,9 +76,9 @@ local serialize_links =
         if ProcessedNodes_Map[instruction_index] then break end
 
         if (NumInLinks_Map[instruction_index] > 1) then
-          Writer.done_write_links()
+          Writer:DoneLinks()
         end
-        write_links(instruction_index, Instruction.NextOnes)
+        write_link(instruction_index, Instruction.NextOnes)
 
         ProcessedNodes_Map[instruction_index] = true
 
@@ -98,25 +90,25 @@ local serialize_links =
       end
     end
 
-    Writer.done_write_links()
+    Writer:DoneLinks()
   end
 
 local callgraph_to_dot =
   function(InstructionsGraph, OutputStream)
-    Writer.init(OutputStream)
+    Writer = Writer.create(OutputStream)
     IndexSerializer = IndexSerializer.create(#InstructionsGraph)
 
-    Writer.start_graph()
+    Writer:StartGraph()
 
     for instruction_index, Instruction in ipairs(InstructionsGraph) do
-      Writer.write_node(get_node_name(instruction_index), Instruction.label)
+      Writer:Node(get_node_name(instruction_index), Instruction.label)
     end
 
-    Writer.write_empty_line()
+    Writer:EmptyLine()
 
     serialize_links(InstructionsGraph)
 
-    Writer.end_graph()
+    Writer:EndGraph()
   end
 
 -- Export:
