@@ -1834,6 +1834,16 @@ package.preload['workshop.concepts.Ascii.Chars'] =
     end
     return Chars
   end
+package.preload['workshop.concepts.Ascii.is_alnum'] =
+  function(...)
+    return
+      function(code)
+        return
+          ((code >= 65) and (code <= 90)) or
+          ((code >= 97) and (code <= 122)) or
+          ((code >= 48) and (code <= 57))
+      end
+  end
 package.preload['workshop.concepts.Ascii.Codes'] =
   function(...)
     return
@@ -2414,16 +2424,16 @@ package.preload['callgraph.callgraph_to_dot'] =
       function(index)
         return IndexSerializer:ToString(index)
       end
-    local write_links
+    local write_link
     do
       local add_to_list = request('!.concepts.list.add_item')
-      write_links =
+      write_link =
         function(index, NextOnes)
           local NextOneNames = {}
           for _, next_one_index in ipairs(NextOnes) do
             add_to_list(NextOneNames, get_node_name(next_one_index))
           end
-          Writer.write_links(get_node_name(index), NextOneNames)
+          Writer:Link(get_node_name(index), NextOneNames)
         end
     end
     local serialize_links =
@@ -2456,9 +2466,9 @@ package.preload['callgraph.callgraph_to_dot'] =
               break
             end
             if (NumInLinks_Map[instruction_index] > 1) then
-              Writer.done_write_links()
+              Writer:DoneLinks()
             end
-            write_links(instruction_index, Instruction.NextOnes)
+            write_link(instruction_index, Instruction.NextOnes)
             ProcessedNodes_Map[instruction_index] = true
             if (#Instruction.NextOnes ~= 1) then
               break
@@ -2469,23 +2479,23 @@ package.preload['callgraph.callgraph_to_dot'] =
             end
           end
         end
-        Writer.done_write_links()
+        Writer:DoneLinks()
       end
     local callgraph_to_dot =
       function(InstructionsGraph, OutputStream)
-        Writer.init(OutputStream)
+        Writer = Writer.create(OutputStream)
         IndexSerializer = IndexSerializer.create(#InstructionsGraph)
-        Writer.start_graph()
+        Writer:StartGraph()
         for
           instruction_index, Instruction in ipairs(InstructionsGraph)
         do
-          Writer.write_node(
+          Writer:Node(
             get_node_name(instruction_index), Instruction.label
           )
         end
-        Writer.write_empty_line()
+        Writer:EmptyLine()
         serialize_links(InstructionsGraph)
-        Writer.end_graph()
+        Writer:EndGraph()
       end
     return callgraph_to_dot
   end
@@ -2654,67 +2664,56 @@ package.preload['callgraph.callgraph_to_dot.Spaces'] =
 package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
   function(...)
     local Syntels = request('Syntels')
-    local Writer
     local Queue = { [1] = false, [2] = false }
     local queue_add =
-      function(name)
+      function(Me, name)
         if Queue[1] then
-          Writer.write_cont(Queue[1])
-          Writer.write_arrow()
+          Me:Write(Queue[1])
+          Me:Arrow()
         end
         Queue[1], Queue[2] = Queue[2], name
       end
     local queue_flush =
-      function()
+      function(Me)
         if Queue[1] then
-          Writer.write_cont(Queue[1])
-          Writer.write_arrow()
-          Writer.write(Queue[2])
-          Writer.end_statement()
+          Me:Write(Queue[1])
+          Me:Arrow()
+          Me:Write(Queue[2])
+          Me:EndStatement()
         end
         Queue[1], Queue[2] = false, false
       end
-    local write_links =
-      function(source_name, DestNames)
-        source_name = Writer.quote(source_name)
+    local quote = request('quote')
+    local Link =
+      function(Me, source_name, DestNames)
+        source_name = quote(source_name)
         if (#DestNames == 0) then
-          queue_flush()
+          queue_flush(Me)
         elseif (#DestNames == 1) then
-          local dest_name = Writer.quote(DestNames[1])
+          local dest_name = quote(DestNames[1])
           if (source_name == Queue[2]) then
-            queue_add(dest_name)
+            queue_add(Me, dest_name)
           else
-            queue_flush()
-            Writer.start_statement()
-            queue_add(source_name)
-            queue_add(dest_name)
+            queue_flush(Me)
+            queue_add(Me, source_name)
+            queue_add(Me, dest_name)
           end
         else
           if (source_name == Queue[2]) then
-            Writer.write_cont(Queue[1])
-            Writer.write_arrow()
-            Writer.write_cont(Queue[2])
-            Writer.write_arrow()
+            Me:Write(Queue[1])
+            Me:Arrow()
+            Me:Write(Queue[2])
             Queue[1], Queue[2] = false, false
-            Writer.write_subgraph(DestNames)
           else
-            queue_flush()
-            Writer.start_statement()
-            Writer.write_cont(source_name)
-            Writer.write_arrow()
-            Writer.write_subgraph(DestNames)
+            queue_flush(Me)
+            Me:Write(source_name)
           end
+          Me:Arrow()
+          Me:Subgraph(DestNames)
+          Me:EndStatement()
         end
       end
-    return
-      {
-        init =
-          function(Arg_Writer)
-            Writer = Arg_Writer
-          end,
-        write_links = write_links,
-        done_write_links = queue_flush,
-      }
+    return { Link = Link, DoneLinks = queue_flush }
   end
 package.preload['callgraph.callgraph_to_dot.Syntels'] =
   function(...)
@@ -2734,183 +2733,199 @@ package.preload['callgraph.callgraph_to_dot.Syntels'] =
       }
     return Syntels
   end
+package.preload['callgraph.callgraph_to_dot.quote'] =
+  function(...)
+    local quote = request('Syntels').quote
+    return
+      function(str)
+        return quote .. str .. quote
+      end
+  end
 package.preload['callgraph.callgraph_to_dot.Writer'] =
   function(...)
     local Syntels = request('Syntels')
     local Spaces = request('Spaces')
     local LinksWriter = request('LinksWriter')
-    local OutputStream
-    local line_len = 0
-    local write =
-      function(str)
-        OutputStream:Write(str)
-        line_len = line_len + #str
-      end
-    local write_cont
-    do
-      local line_item_separator = Spaces.space
-      write_cont =
-        function(str)
-          write(str)
-          write(line_item_separator)
-        end
-    end
-    local write_final
+    local EndLine
+    local EmptyLine
     do
       local line_separator = Spaces.newline
-      write_final =
-        function(str)
-          write(str)
-          write(line_separator)
-          line_len = 0
-        end
-    end
-    local write_empty_line =
-      function()
-        write_final('')
-      end
-    local write_indent
-    do
-      local space = Spaces.space
-      local indent = space .. space .. space
-      write_indent =
-        function()
-          write(indent)
-        end
-    end
-    local quote
-    do
-      local quote_char = Syntels.quote
-      quote =
-        function(str)
-          return quote_char .. str .. quote_char
-        end
-    end
-    local start_statement =
-      function()
-        write_indent()
-      end
-    local end_statement
-    do
-      local end_statement_str = Syntels.end_statement
-      end_statement =
-        function()
-          write_final(end_statement_str)
-        end
-    end
-    local start_attr
-    do
-      local start_attr_str = Syntels.start_attr
-      start_attr =
-        function()
-          write_cont(start_attr_str)
-        end
-    end
-    local end_attr
-    do
-      local end_attr_str = Syntels.end_attr
-      end_attr =
-        function()
-          write(end_attr_str)
-        end
-    end
-    local write_arrow
-    do
-      local wrapping_len = 52
-      local arrow = Syntels.arrow
-      write_arrow =
-        function()
-          if (line_len > wrapping_len) then
-            write_final(arrow)
-            write_indent()
-            write_indent()
-          else
-            write_cont(arrow)
+      EndLine =
+        function(Me)
+          if (Me[2] == 0) then
+            return
           end
+          Me[1]:Write(line_separator)
+          Me[2] = 0
+          Me[3] = ''
+        end
+      EmptyLine =
+        function(Me)
+          Me:EndLine()
+          Me[1]:Write(line_separator)
         end
     end
-    local write_label
+    local Write
     do
+      local item_separator = Spaces.space
+      local sep_len = #item_separator
+      local is_alnum = request('!.concepts.Ascii.is_alnum')
+      local str_sub = string.sub
+      local str_byte = string.byte
+      local end_statement = Syntels.end_statement
+      local ends_with = request('!.string.ends_with')
+      local wrapping_len = 53
+      local arrow = Syntels.arrow
+      Write =
+        function(Me, token)
+          local OutputStream = Me[1]
+          local line_len = Me[2]
+          local prev_token = Me[3]
+          if (line_len == 0) then
+            OutputStream:Write(Me[4]:ToString())
+          end
+          if
+            (line_len > wrapping_len) and
+            ((prev_token == arrow) or (prev_token == end_statement))
+          then
+            Me:EndLine()
+            local Indent = Me[4]
+            OutputStream:Write(Indent:ToString())
+            OutputStream:Write(Indent:GetIndentChunk())
+          else
+            local write_sep = false
+            if (prev_token ~= '') then
+              local prev_char_code =
+                str_byte(str_sub(prev_token, -1, -1))
+              local next_char_code = str_byte(str_sub(token, 1, 1))
+              write_sep =
+                (is_alnum(prev_char_code) and is_alnum(next_char_code)) or
+                (
+                  (token ~= end_statement) and
+                  not ends_with(prev_token, item_separator)
+                )
+            end
+            if write_sep then
+              OutputStream:Write(item_separator)
+              Me[2] = Me[2] + sep_len
+            end
+          end
+          OutputStream:Write(token)
+          Me[2] = Me[2] + #token
+          Me[3] = token
+        end
+    end
+    local EndStatement
+    do
+      local end_statement = Syntels.end_statement
+      EndStatement =
+        function(Me)
+          Me:Write(end_statement)
+          Me:EndLine()
+        end
+    end
+    local Arrow
+    do
+      local arrow = Syntels.arrow
+      Arrow =
+        function(Me)
+          Me:Write(arrow)
+        end
+    end
+    local quote = request('quote')
+    local Label
+    do
+      local start_attr = Syntels.start_attr
+      local end_attr = Syntels.end_attr
       local label_kw = Syntels.kw_label
       local assign = Syntels.assign
-      write_label =
-        function(label)
-          start_attr()
-          write_cont(label_kw)
-          write_cont(assign)
-          write_cont(label)
-          end_attr()
+      Label =
+        function(Me, label)
+          Me:Write(start_attr)
+          Me:Write(label_kw)
+          Me:Write(assign)
+          Me:Write(quote(label))
+          Me:Write(end_attr)
         end
     end
-    local start_graph
+    local StartGraph
     do
       local digraph = Syntels.kw_digraph
-      local start_graph_str = Syntels.start_graph
-      start_graph =
-        function(graph_name)
+      local start_graph = Syntels.start_graph
+      StartGraph =
+        function(Me, graph_name)
+          Me:Write(digraph)
           if graph_name then
-            write_cont(digraph)
-            write_final(quote(graph_name))
-          else
-            write_final(digraph)
+            Me:Write(quote(graph_name))
           end
-          write_final(start_graph_str)
+          Me:EndLine()
+          Me:Write(start_graph)
+          Me:EndLine()
+          Me[4]:Inc()
         end
     end
-    local end_graph
+    local EndGraph
     do
-      local end_graph_str = Syntels.end_graph
-      end_graph =
-        function()
-          write_final(end_graph_str)
+      local end_graph = Syntels.end_graph
+      EndGraph =
+        function(Me)
+          Me[4]:Dec()
+          Me:EndLine()
+          Me:Write(end_graph)
+          Me:EndLine()
         end
     end
-    local write_node =
-      function(name, label)
-        start_statement()
-        write_cont(quote(name))
-        write_label(quote(label))
-        end_statement()
+    local Node =
+      function(Me, name, label)
+        Me:Write(quote(name))
+        Me:Label(label)
+        Me:EndStatement()
       end
-    local write_subgraph
+    local Subgraph
     do
       local start_graph = Syntels.start_graph
       local end_graph = Syntels.end_graph
-      write_subgraph =
-        function(DestNames)
-          write_cont(start_graph)
+      Subgraph =
+        function(Me, DestNames)
+          Me:Write(start_graph)
           for _, dest_name in ipairs(DestNames) do
-            write_cont(quote(dest_name))
+            Me:Write(quote(dest_name))
           end
-          write(end_graph)
-          end_statement()
+          Me:Write(end_graph)
         end
     end
     local Methods
+    local create
+    do
+      local attach_methods = request('!.table.attach_methods')
+      local indent = '   '
+      local Indent = request('!.concepts.Indent')
+      create =
+        function(Arg_OutputStream)
+          OutputStream = Arg_OutputStream
+          Indent = Indent.create()
+          Indent:SetIndentChunk(indent)
+          local Core =
+            { [1] = Arg_OutputStream, [2] = 0, [3] = '', [4] = Indent }
+          attach_methods(Core, Methods)
+          return Core
+        end
+    end
     Methods =
       {
-        init =
-          function(Arg_OutputStream)
-            OutputStream = Arg_OutputStream
-            LinksWriter.init(Methods)
-          end,
-        write = write,
-        write_cont = write_cont,
-        write_final = write_final,
-        write_empty_line = write_empty_line,
-        quote = quote,
-        start_statement = start_statement,
-        end_statement = end_statement,
-        start_attr = start_attr,
-        end_attr = end_attr,
-        write_arrow = write_arrow,
-        write_label = write_label,
-        start_graph = start_graph,
-        end_graph = end_graph,
-        write_node = write_node,
-        write_subgraph = write_subgraph,
-        write_links = LinksWriter.write_links,
-        done_write_links = LinksWriter.done_write_links,
+        create = create,
+        Write = Write,
+        EndLine = EndLine,
+        EmptyLine = EmptyLine,
+        EndStatement = EndStatement,
+        Arrow = Arrow,
+        Label = Label,
+        StartGraph = StartGraph,
+        EndGraph = EndGraph,
+        Node = Node,
+        Subgraph = Subgraph,
+        Link = LinksWriter.Link,
+        DoneLinks = LinksWriter.DoneLinks,
       }
     return Methods
   end
