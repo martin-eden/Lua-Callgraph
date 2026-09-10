@@ -558,22 +558,14 @@ package.preload['workshop.mechs.cmdline.get_cmd_decompile_lua_bytecode'] =
       end
     return get_cmd_decompile_lua_bytecode
   end
-package.preload['workshop.mechs.cmdline.get_cmd_execute_with_redirects'] =
+package.preload['workshop.mechs.cmdline.get_cmd_file_exists'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
-    local quote = request('!.concepts.shell.quote')
-    local glue_words = request('!.concepts.words.to_string')
+    local ShellCommand = request('!.concepts.ShellCommand')
     return
-      function(orig_command, output_file_name, errors_file_name)
-        local Command =
-          {
-            'sh',
-            '-c',
-            quote(orig_command),
-            '1>' .. quote(normalize(output_file_name)),
-            '2>' .. quote(normalize(errors_file_name)),
-          }
-        return glue_words(Command)
+      function(pathname)
+        local Command = { 'test', { '-f', normalize(pathname) } }
+        return ShellCommand.create(Command)
       end
   end
 package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
@@ -583,6 +575,16 @@ package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
     return
       function(file_name)
         local Command = { 'rm', { normalize(file_name) } }
+        return ShellCommand.create(Command)
+      end
+  end
+package.preload['workshop.mechs.cmdline.get_cmd_dir_exists'] =
+  function(...)
+    local normalize = request('!.concepts.path_name.normalize')
+    local ShellCommand = request('!.concepts.ShellCommand')
+    return
+      function(pathname)
+        local Command = { 'test', { '-d', normalize(pathname) } }
         return ShellCommand.create(Command)
       end
   end
@@ -860,21 +862,12 @@ package.preload['workshop.file_system.directory.create'] =
   end
 package.preload['workshop.file_system.directory.exists'] =
   function(...)
-    local normalize_name = request('!.concepts.path_name.normalize')
-    local is_directory =
+    local get_cmd_dir_exists =
+      request('!.mechs.cmdline.get_cmd_dir_exists')
+    return
       function(dir_name)
-        assert_string(dir_name)
-        dir_name = normalize_name(dir_name)
-        local file = io.open(dir_name, 'rb')
-        if is_nil(file) then
-          return false
-        end
-        local _, err_str, err_num = file:read(1)
-        local is_dir = (err_num == 21) and (err_str == 'Is a directory')
-        file:close()
-        return is_dir
+        return (get_cmd_dir_exists(dir_name):Execute())
       end
-    return is_directory
   end
 package.preload['workshop.file_system.directory.remove'] =
   function(...)
@@ -963,19 +956,12 @@ package.preload['workshop.file_system.file.to_string'] =
   end
 package.preload['workshop.file_system.file.exists'] =
   function(...)
-    local normalize_name = request('!.concepts.path_name.normalize')
-    local pathname_exists =
-      function(pathname)
-        assert_string(pathname)
-        pathname = normalize_name(pathname)
-        local file = io.open(pathname, 'rb')
-        local result = not is_nil(file)
-        if result then
-          file:close()
-        end
-        return result
+    local get_cmd_file_exists =
+      request('!.mechs.cmdline.get_cmd_file_exists')
+    return
+      function(file_name)
+        return (get_cmd_file_exists(file_name):Execute())
       end
-    return pathname_exists
   end
 package.preload['workshop.file_system.file.open_for_reading'] =
   function(...)
@@ -1105,53 +1091,50 @@ package.preload['workshop.convert.file_from_str'] =
   end
 package.preload['workshop.concepts.ShellCommand'] =
   function(...)
+    local ToString
+    do
+      local quote = request('!.concepts.shell.quote')
+      local add_to_list = request('!.concepts.list.add_item')
+      local glue_words = request('!.concepts.words.to_string')
+      ToString =
+        function(Me)
+          local command = Me[1]
+          local Args = Me[2]
+          local Words = {}
+          add_to_list(Words, quote(command))
+          for _, arg in ipairs(Args) do
+            add_to_list(Words, quote(arg))
+          end
+          return glue_words(Words)
+        end
+    end
+    local Execute
+    do
+      local execute_shell_command = request('!.concepts.shell.execute')
+      Execute =
+        function(Me)
+          return execute_shell_command(Me:ToString())
+        end
+    end
     local Interface
     do
-      local check_core =
-        function(Core)
-          assert_table(Core)
-          assert(#Core == 2)
-          assert_string(Core[1])
-          assert_table(Core[2])
-          for _, arg in ipairs(Core[2]) do
-            assert_string(arg)
-          end
-        end
       local create
       do
-        local DefaultCore = { '', {} }
         local create_instance = request('!.table.create_instance')
         create =
-          function(OptCore)
-            local Core = OptCore or DefaultCore
-            check_core(Core)
-            return create_instance(Core, Interface)
-          end
-      end
-      local ToString
-      do
-        local quote = request('!.concepts.shell.quote')
-        local add_to_list = request('!.concepts.list.add_item')
-        local glue_words = request('!.concepts.words.to_string')
-        ToString =
-          function(Me)
-            check_core(Me)
-            local Words = {}
-            add_to_list(Words, quote(Me[1]))
-            for _, arg in ipairs(Me[2]) do
-              add_to_list(Words, quote(arg))
+          function(Core)
+            do
+              assert_table(Core)
+              assert(#Core == 2)
+              local command = Core[1]
+              local Args = Core[2]
+              assert_string(command)
+              assert_table(Args)
+              for _, arg in ipairs(Args) do
+                assert_string(arg)
+              end
             end
-            return glue_words(Words)
-          end
-      end
-      local Execute
-      do
-        local execute_shell_command =
-          request('!.concepts.shell.execute')
-        Execute =
-          function(Me)
-            check_core(Me)
-            return execute_shell_command(Me:ToString())
+            return create_instance(Core, Interface)
           end
       end
       Interface =
@@ -1431,53 +1414,45 @@ package.preload['workshop.concepts.shell.quote'] =
   end
 package.preload['workshop.concepts.shell.execute'] =
   function(...)
-    local execute_shell_command
-    do
-      local get_is_aborted
-      do
-        local normal_exit_str = 'exit'
-        local aborted_exit_str = 'signal'
-        get_is_aborted =
-          function(result_type_code)
-            if (result_type_code == normal_exit_str) then
-              return false
-            elseif (result_type_code == aborted_exit_str) then
-              return true
-            else
-              error('Unknown termination status.')
-            end
-          end
+    local get_is_aborted =
+      function(result_type_code)
+        if (result_type_code == 'signal') then
+          return true
+        elseif (result_type_code == 'exit') then
+          return false
+        else
+          error('Unknown termination status.')
+        end
       end
-      do
-        local get_execute_command =
-          request('!.mechs.cmdline.get_cmd_execute_with_redirects')
-        local file_to_str = request('!.convert.file_to_str')
-        local os_tmpname = os.tmpname
-        local os_execute = os.execute
-        local os_remove = os.remove
-        execute_shell_command =
-          function(command)
-            local output_filename = os_tmpname()
-            local error_filename = os_tmpname()
-            local shell_command =
-              get_execute_command(
-                command, output_filename, error_filename
-              )
-            local _, result_type_code, result_code =
-              os_execute(shell_command)
-            local Result = {}
-            Result.is_aborted = get_is_aborted(result_type_code)
-            Result.result_code = result_code
-            Result.output = file_to_str(output_filename)
-            Result.error = file_to_str(error_filename)
-            os_remove(output_filename)
-            os_remove(error_filename)
-            local is_ok = (Result.result_code == 0)
-            return is_ok, Result
-          end
+    local os_tmpname = os.tmpname
+    local os_execute = os.execute
+    local file_to_str = request('!.convert.file_to_str')
+    local os_remove = os.remove
+    return
+      function(command)
+        local output_filename = os_tmpname()
+        local error_filename = os_tmpname()
+        local shell_command =
+          command ..
+          ' ' ..
+          '1>' ..
+          output_filename ..
+          ' ' ..
+          '2>' ..
+          error_filename
+        local _, result_type_code, result_code =
+          os_execute(shell_command)
+        local Result =
+          {
+            result_code = result_code,
+            is_aborted = get_is_aborted(result_type_code),
+            output = file_to_str(output_filename),
+            error = file_to_str(error_filename),
+          }
+        os_remove(output_filename)
+        os_remove(error_filename)
+        return (Result.result_code == 0), Result
       end
-    end
-    return execute_shell_command
   end
 package.preload['workshop.concepts.shell.quote.SpecialChars'] =
   function(...)
@@ -1542,11 +1517,12 @@ package.preload['workshop.concepts.list.add_item'] =
   end
 package.preload['workshop.concepts.list.add_list'] =
   function(...)
-    local add_list =
+    local tbl_move = table.move
+    return
       function(OurList, AnotherList)
-        table.move(AnotherList, 1, #AnotherList, #OurList + 1, OurList)
+        assert(OurList ~= AnotherList)
+        tbl_move(AnotherList, 1, #AnotherList, #OurList + 1, OurList)
       end
-    return add_list
   end
 package.preload['workshop.concepts.words.to_string'] =
   function(...)
