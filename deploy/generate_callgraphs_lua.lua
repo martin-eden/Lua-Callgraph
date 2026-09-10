@@ -558,22 +558,14 @@ package.preload['workshop.mechs.cmdline.get_cmd_decompile_lua_bytecode'] =
       end
     return get_cmd_decompile_lua_bytecode
   end
-package.preload['workshop.mechs.cmdline.get_cmd_execute_with_redirects'] =
+package.preload['workshop.mechs.cmdline.get_cmd_file_exists'] =
   function(...)
     local normalize = request('!.concepts.path_name.normalize')
-    local quote = request('!.concepts.shell.quote')
-    local glue_words = request('!.concepts.words.to_string')
+    local ShellCommand = request('!.concepts.ShellCommand')
     return
-      function(orig_command, output_file_name, errors_file_name)
-        local Command =
-          {
-            'sh',
-            '-c',
-            quote(orig_command),
-            '1>' .. quote(normalize(output_file_name)),
-            '2>' .. quote(normalize(errors_file_name)),
-          }
-        return glue_words(Command)
+      function(pathname)
+        local Command = { 'test', { '-f', normalize(pathname) } }
+        return ShellCommand.create(Command)
       end
   end
 package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
@@ -583,6 +575,16 @@ package.preload['workshop.mechs.cmdline.get_cmd_rmfile'] =
     return
       function(file_name)
         local Command = { 'rm', { normalize(file_name) } }
+        return ShellCommand.create(Command)
+      end
+  end
+package.preload['workshop.mechs.cmdline.get_cmd_dir_exists'] =
+  function(...)
+    local normalize = request('!.concepts.path_name.normalize')
+    local ShellCommand = request('!.concepts.ShellCommand')
+    return
+      function(pathname)
+        local Command = { 'test', { '-d', normalize(pathname) } }
         return ShellCommand.create(Command)
       end
   end
@@ -860,21 +862,12 @@ package.preload['workshop.file_system.directory.create'] =
   end
 package.preload['workshop.file_system.directory.exists'] =
   function(...)
-    local normalize_name = request('!.concepts.path_name.normalize')
-    local is_directory =
+    local get_cmd_dir_exists =
+      request('!.mechs.cmdline.get_cmd_dir_exists')
+    return
       function(dir_name)
-        assert_string(dir_name)
-        dir_name = normalize_name(dir_name)
-        local file = io.open(dir_name, 'rb')
-        if is_nil(file) then
-          return false
-        end
-        local _, err_str, err_num = file:read(1)
-        local is_dir = (err_num == 21) and (err_str == 'Is a directory')
-        file:close()
-        return is_dir
+        return (get_cmd_dir_exists(dir_name):Execute())
       end
-    return is_directory
   end
 package.preload['workshop.file_system.directory.remove'] =
   function(...)
@@ -963,19 +956,12 @@ package.preload['workshop.file_system.file.to_string'] =
   end
 package.preload['workshop.file_system.file.exists'] =
   function(...)
-    local normalize_name = request('!.concepts.path_name.normalize')
-    local pathname_exists =
-      function(pathname)
-        assert_string(pathname)
-        pathname = normalize_name(pathname)
-        local file = io.open(pathname, 'rb')
-        local result = not is_nil(file)
-        if result then
-          file:close()
-        end
-        return result
+    local get_cmd_file_exists =
+      request('!.mechs.cmdline.get_cmd_file_exists')
+    return
+      function(file_name)
+        return (get_cmd_file_exists(file_name):Execute())
       end
-    return pathname_exists
   end
 package.preload['workshop.file_system.file.open_for_reading'] =
   function(...)
@@ -1105,53 +1091,50 @@ package.preload['workshop.convert.file_from_str'] =
   end
 package.preload['workshop.concepts.ShellCommand'] =
   function(...)
+    local ToString
+    do
+      local quote = request('!.concepts.shell.quote')
+      local add_to_list = request('!.concepts.list.add_item')
+      local glue_words = request('!.concepts.words.to_string')
+      ToString =
+        function(Me)
+          local command = Me[1]
+          local Args = Me[2]
+          local Words = {}
+          add_to_list(Words, quote(command))
+          for _, arg in ipairs(Args) do
+            add_to_list(Words, quote(arg))
+          end
+          return glue_words(Words)
+        end
+    end
+    local Execute
+    do
+      local execute_shell_command = request('!.concepts.shell.execute')
+      Execute =
+        function(Me)
+          return execute_shell_command(Me:ToString())
+        end
+    end
     local Interface
     do
-      local check_core =
-        function(Core)
-          assert_table(Core)
-          assert(#Core == 2)
-          assert_string(Core[1])
-          assert_table(Core[2])
-          for _, arg in ipairs(Core[2]) do
-            assert_string(arg)
-          end
-        end
       local create
       do
-        local DefaultCore = { '', {} }
         local create_instance = request('!.table.create_instance')
         create =
-          function(OptCore)
-            local Core = OptCore or DefaultCore
-            check_core(Core)
-            return create_instance(Core, Interface)
-          end
-      end
-      local ToString
-      do
-        local quote = request('!.concepts.shell.quote')
-        local add_to_list = request('!.concepts.list.add_item')
-        local glue_words = request('!.concepts.words.to_string')
-        ToString =
-          function(Me)
-            check_core(Me)
-            local Words = {}
-            add_to_list(Words, quote(Me[1]))
-            for _, arg in ipairs(Me[2]) do
-              add_to_list(Words, quote(arg))
+          function(Core)
+            do
+              assert_table(Core)
+              assert(#Core == 2)
+              local command = Core[1]
+              local Args = Core[2]
+              assert_string(command)
+              assert_table(Args)
+              for _, arg in ipairs(Args) do
+                assert_string(arg)
+              end
             end
-            return glue_words(Words)
-          end
-      end
-      local Execute
-      do
-        local execute_shell_command =
-          request('!.concepts.shell.execute')
-        Execute =
-          function(Me)
-            check_core(Me)
-            return execute_shell_command(Me:ToString())
+            return create_instance(Core, Interface)
           end
       end
       Interface =
@@ -1431,53 +1414,45 @@ package.preload['workshop.concepts.shell.quote'] =
   end
 package.preload['workshop.concepts.shell.execute'] =
   function(...)
-    local execute_shell_command
-    do
-      local get_is_aborted
-      do
-        local normal_exit_str = 'exit'
-        local aborted_exit_str = 'signal'
-        get_is_aborted =
-          function(result_type_code)
-            if (result_type_code == normal_exit_str) then
-              return false
-            elseif (result_type_code == aborted_exit_str) then
-              return true
-            else
-              error('Unknown termination status.')
-            end
-          end
+    local get_is_aborted =
+      function(result_type_code)
+        if (result_type_code == 'signal') then
+          return true
+        elseif (result_type_code == 'exit') then
+          return false
+        else
+          error('Unknown termination status.')
+        end
       end
-      do
-        local get_execute_command =
-          request('!.mechs.cmdline.get_cmd_execute_with_redirects')
-        local file_to_str = request('!.convert.file_to_str')
-        local os_tmpname = os.tmpname
-        local os_execute = os.execute
-        local os_remove = os.remove
-        execute_shell_command =
-          function(command)
-            local output_filename = os_tmpname()
-            local error_filename = os_tmpname()
-            local shell_command =
-              get_execute_command(
-                command, output_filename, error_filename
-              )
-            local _, result_type_code, result_code =
-              os_execute(shell_command)
-            local Result = {}
-            Result.is_aborted = get_is_aborted(result_type_code)
-            Result.result_code = result_code
-            Result.output = file_to_str(output_filename)
-            Result.error = file_to_str(error_filename)
-            os_remove(output_filename)
-            os_remove(error_filename)
-            local is_ok = (Result.result_code == 0)
-            return is_ok, Result
-          end
+    local os_tmpname = os.tmpname
+    local os_execute = os.execute
+    local file_to_str = request('!.convert.file_to_str')
+    local os_remove = os.remove
+    return
+      function(command)
+        local output_filename = os_tmpname()
+        local error_filename = os_tmpname()
+        local shell_command =
+          command ..
+          ' ' ..
+          '1>' ..
+          output_filename ..
+          ' ' ..
+          '2>' ..
+          error_filename
+        local _, result_type_code, result_code =
+          os_execute(shell_command)
+        local Result =
+          {
+            result_code = result_code,
+            is_aborted = get_is_aborted(result_type_code),
+            output = file_to_str(output_filename),
+            error = file_to_str(error_filename),
+          }
+        os_remove(output_filename)
+        os_remove(error_filename)
+        return (Result.result_code == 0), Result
       end
-    end
-    return execute_shell_command
   end
 package.preload['workshop.concepts.shell.quote.SpecialChars'] =
   function(...)
@@ -1542,11 +1517,12 @@ package.preload['workshop.concepts.list.add_item'] =
   end
 package.preload['workshop.concepts.list.add_list'] =
   function(...)
-    local add_list =
+    local tbl_move = table.move
+    return
       function(OurList, AnotherList)
-        table.move(AnotherList, 1, #AnotherList, #OurList + 1, OurList)
+        assert(OurList ~= AnotherList)
+        tbl_move(AnotherList, 1, #AnotherList, #OurList + 1, OurList)
       end
-    return add_list
   end
 package.preload['workshop.concepts.words.to_string'] =
   function(...)
@@ -2472,85 +2448,64 @@ package.preload['callgraph.callgraph_to_tgf'] =
 package.preload['callgraph.callgraph_to_dot'] =
   function(...)
     local Writer = request('callgraph_to_dot.Writer')
-    local IndexSerializer = request('!.concepts.PaddedIndex')
-    local get_node_name =
-      function(index)
-        return IndexSerializer:ToString(index)
-      end
-    local write_link
+    local get_chains
     do
       local add_to_list = request('!.concepts.list.add_item')
-      write_link =
-        function(index, NextOnes)
-          local NextOneNames = {}
-          for _, next_one_index in ipairs(NextOnes) do
-            add_to_list(NextOneNames, get_node_name(next_one_index))
+      get_chains =
+        function(InstructionsGraph)
+          local num_instructions = #InstructionsGraph
+          local Chains = {}
+          local VisitedNodes_Map = {}
+          for i = 1, num_instructions do
+            VisitedNodes_Map[i] = false
           end
-          Writer:Link(get_node_name(index), NextOneNames)
+          local walk_chain
+          walk_chain =
+            function(start_node, Chain)
+              add_to_list(Chain, start_node)
+              if VisitedNodes_Map[start_node] then
+                add_to_list(Chains, Chain)
+                return
+              end
+              VisitedNodes_Map[start_node] = true
+              local NextOnes = InstructionsGraph[start_node].NextOnes
+              local num_next_ones = #NextOnes
+              if (num_next_ones == 0) then
+                add_to_list(Chains, Chain)
+                return
+              end
+              walk_chain(NextOnes[1], Chain)
+              for next_one_index = 2, num_next_ones do
+                local InnerChain = { start_node }
+                walk_chain(NextOnes[next_one_index], InnerChain)
+              end
+            end
+          for start_node = 1, num_instructions do
+            if not VisitedNodes_Map[start_node] then
+              walk_chain(start_node, {})
+            end
+          end
+          return Chains
         end
     end
-    local serialize_links =
-      function(InstructionsGraph)
-        local NumInLinks_Map = {}
-        for instruction_index in ipairs(InstructionsGraph) do
-          NumInLinks_Map[instruction_index] = 0
-        end
-        NumInLinks_Map[1] = 1
-        for
-          instruction_index, Instruction in ipairs(InstructionsGraph)
-        do
-          for _, next_one_index in ipairs(Instruction.NextOnes) do
-            NumInLinks_Map[next_one_index] =
-              NumInLinks_Map[next_one_index] + 1
-          end
-        end
-        local ProcessedNodes_Map = {}
-        for i = 1, #InstructionsGraph do
-          ProcessedNodes_Map[i] = false
-        end
-        for first_instruction_index = 1, #InstructionsGraph do
-          local instruction_index = first_instruction_index
-          while true do
-            local Instruction = InstructionsGraph[instruction_index]
-            if not Instruction then
-              break
-            end
-            if ProcessedNodes_Map[instruction_index] then
-              break
-            end
-            if (NumInLinks_Map[instruction_index] > 1) then
-              Writer:DoneLinks()
-            end
-            write_link(instruction_index, Instruction.NextOnes)
-            ProcessedNodes_Map[instruction_index] = true
-            if (#Instruction.NextOnes ~= 1) then
-              break
-            end
-            instruction_index = Instruction.NextOnes[1]
-            if (NumInLinks_Map[instruction_index] > 1) then
-              break
-            end
-          end
-        end
-        Writer:DoneLinks()
-      end
-    local callgraph_to_dot =
+    return
       function(InstructionsGraph, OutputStream)
-        Writer = Writer.create(OutputStream)
-        IndexSerializer = IndexSerializer.create(#InstructionsGraph)
+        Writer = Writer.create(OutputStream, #InstructionsGraph)
         Writer:StartGraph()
         for
           instruction_index, Instruction in ipairs(InstructionsGraph)
         do
-          Writer:Node(
-            get_node_name(instruction_index), Instruction.label
-          )
+          Writer:Node(instruction_index, Instruction.label)
         end
         Writer:EmptyLine()
-        serialize_links(InstructionsGraph)
+        do
+          local Chains = get_chains(InstructionsGraph)
+          for _, Chain in ipairs(Chains) do
+            Writer:Chain(Chain)
+          end
+        end
         Writer:EndGraph()
       end
-    return callgraph_to_dot
   end
 package.preload['callgraph.vm_2020.FlowOpcodes'] =
   function(...)
@@ -2714,60 +2669,6 @@ package.preload['callgraph.callgraph_to_dot.Spaces'] =
       }
     return Spaces
   end
-package.preload['callgraph.callgraph_to_dot.LinksWriter'] =
-  function(...)
-    local Syntels = request('Syntels')
-    local Queue = { [1] = false, [2] = false }
-    local queue_add =
-      function(Me, name)
-        if Queue[1] then
-          Me:Write(Queue[1])
-          Me:Arrow()
-        end
-        Queue[1], Queue[2] = Queue[2], name
-      end
-    local queue_flush =
-      function(Me)
-        if Queue[1] then
-          Me:Write(Queue[1])
-          Me:Arrow()
-          Me:Write(Queue[2])
-          Me:EndStatement()
-        end
-        Queue[1], Queue[2] = false, false
-      end
-    local quote = request('quote')
-    local Link =
-      function(Me, source_name, DestNames)
-        source_name = quote(source_name)
-        if (#DestNames == 0) then
-          queue_flush(Me)
-        elseif (#DestNames == 1) then
-          local dest_name = quote(DestNames[1])
-          if (source_name == Queue[2]) then
-            queue_add(Me, dest_name)
-          else
-            queue_flush(Me)
-            queue_add(Me, source_name)
-            queue_add(Me, dest_name)
-          end
-        else
-          if (source_name == Queue[2]) then
-            Me:Write(Queue[1])
-            Me:Arrow()
-            Me:Write(Queue[2])
-            Queue[1], Queue[2] = false, false
-          else
-            queue_flush(Me)
-            Me:Write(source_name)
-          end
-          Me:Arrow()
-          Me:Subgraph(DestNames)
-          Me:EndStatement()
-        end
-      end
-    return { Link = Link, DoneLinks = queue_flush }
-  end
 package.preload['callgraph.callgraph_to_dot.Syntels'] =
   function(...)
     local AsciiChars = request('!.concepts.Ascii.Chars')
@@ -2786,24 +2687,15 @@ package.preload['callgraph.callgraph_to_dot.Syntels'] =
       }
     return Syntels
   end
-package.preload['callgraph.callgraph_to_dot.quote'] =
-  function(...)
-    local quote = request('Syntels').quote
-    return
-      function(str)
-        return quote .. str .. quote
-      end
-  end
 package.preload['callgraph.callgraph_to_dot.Writer'] =
   function(...)
     local Syntels = request('Syntels')
     local Spaces = request('Spaces')
-    local LinksWriter = request('LinksWriter')
-    local EndLine
-    local EmptyLine
+    local end_line
+    local empty_line
     do
       local line_separator = Spaces.newline
-      EndLine =
+      end_line =
         function(Me)
           if (Me[2] == 0) then
             return
@@ -2812,13 +2704,13 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
           Me[2] = 0
           Me[3] = ''
         end
-      EmptyLine =
+      empty_line =
         function(Me)
-          Me:EndLine()
+          end_line(Me)
           Me[1]:Write(line_separator)
         end
     end
-    local Write
+    local write
     do
       local item_separator = Spaces.space
       local sep_len = #item_separator
@@ -2829,7 +2721,7 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
       local ends_with = request('!.string.ends_with')
       local wrapping_len = 53
       local arrow = Syntels.arrow
-      Write =
+      write =
         function(Me, token)
           local OutputStream = Me[1]
           local line_len = Me[2]
@@ -2841,7 +2733,7 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
             (line_len > wrapping_len) and
             ((prev_token == arrow) or (prev_token == end_statement))
           then
-            Me:EndLine()
+            end_line(Me)
             local Indent = Me[4]
             OutputStream:Write(Indent:ToString())
             OutputStream:Write(Indent:GetIndentChunk())
@@ -2868,37 +2760,48 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
           Me[3] = token
         end
     end
-    local EndStatement
+    local end_statement
     do
-      local end_statement = Syntels.end_statement
-      EndStatement =
+      local end_statement_str = Syntels.end_statement
+      end_statement =
         function(Me)
-          Me:Write(end_statement)
-          Me:EndLine()
+          write(Me, end_statement_str)
+          end_line(Me)
         end
     end
-    local Arrow
+    local arrow
     do
-      local arrow = Syntels.arrow
-      Arrow =
+      local arrow_str = Syntels.arrow
+      arrow =
         function(Me)
-          Me:Write(arrow)
+          write(Me, arrow_str)
         end
     end
-    local quote = request('quote')
-    local Label
+    local quote
+    do
+      local quote_str = Syntels.quote
+      quote =
+        function(str)
+          return quote_str .. str .. quote_str
+        end
+    end
+    local get_node_name =
+      function(Me, index)
+        return quote(Me[5]:ToString(index))
+      end
+    local label
     do
       local start_attr = Syntels.start_attr
       local end_attr = Syntels.end_attr
       local label_kw = Syntels.kw_label
       local assign = Syntels.assign
-      Label =
+      label =
         function(Me, label)
-          Me:Write(start_attr)
-          Me:Write(label_kw)
-          Me:Write(assign)
-          Me:Write(quote(label))
-          Me:Write(end_attr)
+          write(Me, start_attr)
+          write(Me, label_kw)
+          write(Me, assign)
+          write(Me, quote(label))
+          write(Me, end_attr)
         end
     end
     local StartGraph
@@ -2907,13 +2810,13 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
       local start_graph = Syntels.start_graph
       StartGraph =
         function(Me, graph_name)
-          Me:Write(digraph)
+          write(Me, digraph)
           if graph_name then
-            Me:Write(quote(graph_name))
+            write(Me, quote(graph_name))
           end
-          Me:EndLine()
-          Me:Write(start_graph)
-          Me:EndLine()
+          end_line(Me)
+          write(Me, start_graph)
+          end_line(Me)
           Me[4]:Inc()
         end
     end
@@ -2923,43 +2826,54 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
       EndGraph =
         function(Me)
           Me[4]:Dec()
-          Me:EndLine()
-          Me:Write(end_graph)
-          Me:EndLine()
+          end_line(Me)
+          write(Me, end_graph)
+          end_line(Me)
         end
     end
     local Node =
-      function(Me, name, label)
-        Me:Write(quote(name))
-        Me:Label(label)
-        Me:EndStatement()
+      function(Me, index, label_str)
+        write(Me, get_node_name(Me, index))
+        label(Me, label_str)
+        end_statement(Me)
       end
-    local Subgraph
-    do
-      local start_graph = Syntels.start_graph
-      local end_graph = Syntels.end_graph
-      Subgraph =
-        function(Me, DestNames)
-          Me:Write(start_graph)
-          for _, dest_name in ipairs(DestNames) do
-            Me:Write(quote(dest_name))
-          end
-          Me:Write(end_graph)
+    local Chain =
+      function(Me, Chain)
+        local num_nodes = #Chain
+        if (num_nodes <= 1) then
+          return
         end
-    end
+        local prev_node = Chain[1]
+        write(Me, get_node_name(Me, prev_node))
+        for node_idx = 2, num_nodes do
+          local next_node = Chain[node_idx]
+          arrow(Me)
+          write(Me, get_node_name(Me, next_node))
+          prev_node = next_node
+        end
+        end_statement(Me)
+      end
     local Methods
     local create
     do
       local attach_methods = request('!.table.attach_methods')
       local indent = '   '
       local Indent = request('!.concepts.Indent')
+      local IndexSerializer = request('!.concepts.PaddedIndex')
       create =
-        function(Arg_OutputStream)
+        function(Arg_OutputStream, num_nodes)
           OutputStream = Arg_OutputStream
           Indent = Indent.create()
           Indent:SetIndentChunk(indent)
+          IndexSerializer = IndexSerializer.create(num_nodes)
           local Core =
-            { [1] = Arg_OutputStream, [2] = 0, [3] = '', [4] = Indent }
+            {
+              [1] = Arg_OutputStream,
+              [2] = 0,
+              [3] = '',
+              [4] = Indent,
+              [5] = IndexSerializer,
+            }
           attach_methods(Core, Methods)
           return Core
         end
@@ -2967,18 +2881,11 @@ package.preload['callgraph.callgraph_to_dot.Writer'] =
     Methods =
       {
         create = create,
-        Write = Write,
-        EndLine = EndLine,
-        EmptyLine = EmptyLine,
-        EndStatement = EndStatement,
-        Arrow = Arrow,
-        Label = Label,
+        EmptyLine = empty_line,
         StartGraph = StartGraph,
         EndGraph = EndGraph,
         Node = Node,
-        Subgraph = Subgraph,
-        Link = LinksWriter.Link,
-        DoneLinks = LinksWriter.DoneLinks,
+        Chain = Chain,
       }
     return Methods
   end
