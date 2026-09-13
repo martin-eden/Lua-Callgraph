@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-05
+  Last mod.: 2026-09-14
 ]]
 
 --[[
@@ -22,99 +22,88 @@
 ]]
 
 --[[
-  This implementation uses subgraphs to represent node emitting
-  several edges. Also it merges chains into one .dot statement.
+  This implementation merges chains into one .dot statement.
 ]]
 
 local Writer = request('callgraph_to_dot.Writer')
-local IndexSerializer = request('!.concepts.PaddedIndex')
 
-local get_node_name =
-  function(index)
-    return IndexSerializer:ToString(index)
-  end
-
-local write_link
+local get_chains
 do
   local add_to_list = request('!.concepts.list.add_item')
-  write_link =
-    function(index, NextOnes)
-      local NextOneNames = { }
-      for _, next_one_index in ipairs(NextOnes) do
-        add_to_list(NextOneNames, get_node_name(next_one_index))
+
+  get_chains =
+    function(InstructionsGraph)
+      local num_instructions = #InstructionsGraph
+
+      local Chains = { }
+
+      local VisitedNodes_Map = { }
+      for i = 1, num_instructions do
+        VisitedNodes_Map[i] = false
       end
-      Writer:Link(get_node_name(index), NextOneNames)
+
+      local walk_chain
+      walk_chain =
+        function(start_node, Chain)
+          add_to_list(Chain, start_node)
+
+          if VisitedNodes_Map[start_node] then
+            add_to_list(Chains, Chain)
+            return
+          end
+
+          VisitedNodes_Map[start_node] = true
+
+          local NextOnes = InstructionsGraph[start_node].NextOnes
+          local num_next_ones = #NextOnes
+
+          if (num_next_ones == 0) then
+            add_to_list(Chains, Chain)
+            return
+          end
+
+          walk_chain(NextOnes[1], Chain)
+
+          for next_one_index = 2, num_next_ones do
+            local InnerChain = { start_node }
+            walk_chain(NextOnes[next_one_index], InnerChain)
+          end
+        end
+
+      for start_node = 1, num_instructions do
+        if not VisitedNodes_Map[start_node] then
+          walk_chain(start_node, { })
+        end
+      end
+
+      return Chains
     end
 end
 
-local serialize_links =
-  function(InstructionsGraph)
-    local NumInLinks_Map = { }
-
-    for instruction_index in ipairs(InstructionsGraph) do
-      NumInLinks_Map[instruction_index] = 0
-    end
-    NumInLinks_Map[1] = 1
-
-    for instruction_index, Instruction in ipairs(InstructionsGraph) do
-      for _, next_one_index in ipairs(Instruction.NextOnes) do
-        NumInLinks_Map[next_one_index] = NumInLinks_Map[next_one_index] + 1
-      end
-    end
-
-    local ProcessedNodes_Map = { }
-    for i = 1, #InstructionsGraph do
-      ProcessedNodes_Map[i] = false
-    end
-
-    for first_instruction_index = 1, #InstructionsGraph do
-      local instruction_index = first_instruction_index
-      while true do
-        local Instruction = InstructionsGraph[instruction_index]
-
-        if not Instruction then break end
-        if ProcessedNodes_Map[instruction_index] then break end
-
-        if (NumInLinks_Map[instruction_index] > 1) then
-          Writer:DoneLinks()
-        end
-        write_link(instruction_index, Instruction.NextOnes)
-
-        ProcessedNodes_Map[instruction_index] = true
-
-        if (#Instruction.NextOnes ~= 1) then break end
-
-        instruction_index = Instruction.NextOnes[1]
-
-        if (NumInLinks_Map[instruction_index] > 1) then break end
-      end
-    end
-
-    Writer:DoneLinks()
-  end
-
-local callgraph_to_dot =
+-- Export:
+return
   function(InstructionsGraph, OutputStream)
-    Writer = Writer.create(OutputStream)
-    IndexSerializer = IndexSerializer.create(#InstructionsGraph)
+    Writer = Writer.create(OutputStream, #InstructionsGraph)
 
     Writer:StartGraph()
 
     for instruction_index, Instruction in ipairs(InstructionsGraph) do
-      Writer:Node(get_node_name(instruction_index), Instruction.label)
+      Writer:Node(instruction_index, Instruction.label)
     end
 
     Writer:EmptyLine()
 
-    serialize_links(InstructionsGraph)
+    do
+      local Chains = get_chains(InstructionsGraph)
+      for _, Chain in ipairs(Chains) do
+        Writer:Chain(Chain)
+      end
+    end
 
     Writer:EndGraph()
   end
 
--- Export:
-return callgraph_to_dot
-
 --[[
-  2026 # # # # # #
-  2026-09-03
+  2026 # # # # # # #
+  2026-09-13
 ]]

@@ -1,22 +1,8 @@
--- .dot syntax elements serialization
+-- .dot elements serialization
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-05
-]]
-
---[[
-  Contract
-
-  Basically contract is the same as for our Lua table serializer:
-  output will only contain tokens you asked us to write and
-  whitespaces we've added between them as we please.
-
-  But we can have internal state and we may export whitespace-writing
-  methods.
-
-  We may also export convenience methods as write_links() that
-  write more than one token per call.
+  Last mod.: 2026-09-14
 ]]
 
 --[[
@@ -26,18 +12,17 @@
     2 [i] -- current line length
     3 [s] -- previous token
     4 [t] -- indent instance
+    5 [t] -- padded index instance
 ]]
 
 local Syntels = request('Syntels')
 local Spaces = request('Spaces')
 
-local LinksWriter = request('LinksWriter')
-
-local EndLine
-local EmptyLine
+local end_line
+local empty_line
 do
   local line_separator = Spaces.newline
-  EndLine =
+  end_line =
     function(Me)
       if (Me[2] == 0) then return end
 
@@ -46,14 +31,14 @@ do
       Me[3] = ''
     end
 
-  EmptyLine =
+  empty_line =
     function(Me)
-      Me:EndLine()
+      end_line(Me)
       Me[1]:Write(line_separator)
     end
 end
 
-local Write
+local write
 do
   local item_separator = Spaces.space
   local sep_len = #item_separator
@@ -64,7 +49,7 @@ do
   local ends_with = request('!.string.ends_with')
   local wrapping_len = 53
   local arrow = Syntels.arrow
-  Write =
+  write =
     function(Me, token)
       local OutputStream = Me[1]
       local line_len = Me[2]
@@ -81,7 +66,7 @@ do
           (prev_token == end_statement)
         )
       then
-        Me:EndLine()
+        end_line(Me)
         local Indent = Me[4]
         OutputStream:Write(Indent:ToString())
         OutputStream:Write(Indent:GetIndentChunk())
@@ -114,40 +99,52 @@ do
     end
 end
 
-local EndStatement
+local end_statement
 do
-  local end_statement = Syntels.end_statement
-  EndStatement =
+  local end_statement_str = Syntels.end_statement
+  end_statement =
     function(Me)
-      Me:Write(end_statement)
-      Me:EndLine()
+      write(Me, end_statement_str)
+      end_line(Me)
     end
 end
 
-local Arrow
+local arrow
 do
-  local arrow = Syntels.arrow
-  Arrow =
+  local arrow_str = Syntels.arrow
+  arrow =
     function(Me)
-      Me:Write(arrow)
+      write(Me, arrow_str)
     end
 end
 
-local quote = request('quote')
+local quote
+do
+  local quote_str = Syntels.quote
+  quote =
+    function(str)
+      return quote_str .. str .. quote_str
+    end
+end
 
-local Label
+local get_node_name =
+  function(Me, index)
+    return quote(Me[5]:ToString(index))
+  end
+
+local label
 do
   local start_attr = Syntels.start_attr
   local end_attr = Syntels.end_attr
   local label_kw = Syntels.kw_label
   local assign = Syntels.assign
-  Label =
+  label =
     function(Me, label)
-      Me:Write(start_attr)
-      Me:Write(label_kw)
-      Me:Write(assign)
-      Me:Write(quote(label))
-      Me:Write(end_attr)
+      write(Me, start_attr)
+      write(Me, label_kw)
+      write(Me, assign)
+      write(Me, quote(label))
+      write(Me, end_attr)
     end
 end
 
@@ -157,13 +154,13 @@ do
   local start_graph = Syntels.start_graph
   StartGraph =
     function(Me, graph_name)
-      Me:Write(digraph)
+      write(Me, digraph)
       if graph_name then
-        Me:Write(quote(graph_name))
+        write(Me, quote(graph_name))
       end
-      Me:EndLine()
-      Me:Write(start_graph)
-      Me:EndLine()
+      end_line(Me)
+      write(Me, start_graph)
+      end_line(Me)
       Me[4]:Inc()
     end
 end
@@ -174,32 +171,37 @@ do
   EndGraph =
     function(Me)
       Me[4]:Dec()
-      Me:EndLine()
-      Me:Write(end_graph)
-      Me:EndLine()
+      end_line(Me)
+      write(Me, end_graph)
+      end_line(Me)
     end
 end
 
 local Node =
-  function(Me, name, label)
-    Me:Write(quote(name))
-    Me:Label(label)
-    Me:EndStatement()
+  function(Me, index, label_str)
+    write(Me, get_node_name(Me, index))
+    label(Me, label_str)
+    end_statement(Me)
   end
 
-local Subgraph
-do
-  local start_graph = Syntels.start_graph
-  local end_graph = Syntels.end_graph
-  Subgraph =
-    function(Me, DestNames)
-      Me:Write(start_graph)
-      for _, dest_name in ipairs(DestNames) do
-        Me:Write(quote(dest_name))
-      end
-      Me:Write(end_graph)
+local Chain =
+  function(Me, Chain)
+    local num_nodes = #Chain
+    if (num_nodes <= 1) then return end
+
+    local prev_node = Chain[1]
+
+    write(Me, get_node_name(Me, prev_node))
+
+    for node_idx = 2, num_nodes do
+      local next_node = Chain[node_idx]
+      arrow(Me)
+      write(Me, get_node_name(Me, next_node))
+      prev_node = next_node
     end
-end
+
+    end_statement(Me)
+  end
 
 local Methods
 
@@ -208,12 +210,15 @@ do
   local attach_methods = request('!.table.attach_methods')
   local indent = '   '
   local Indent = request('!.concepts.Indent')
+  local IndexSerializer = request('!.concepts.PaddedIndex')
   create =
-    function(Arg_OutputStream)
+    function(Arg_OutputStream, num_nodes)
       OutputStream = Arg_OutputStream
 
       Indent = Indent.create()
       Indent:SetIndentChunk(indent)
+
+      IndexSerializer = IndexSerializer.create(num_nodes)
 
       local Core =
         {
@@ -221,6 +226,7 @@ do
           [2] = 0,
           [3] = '',
           [4] = Indent,
+          [5] = IndexSerializer,
         }
       attach_methods(Core, Methods)
 
@@ -232,30 +238,19 @@ Methods =
   {
     create = create,
 
-    Write = Write,
-    EndLine = EndLine,
-
-    EmptyLine = EmptyLine,
-
-    EndStatement = EndStatement,
-
-    Arrow = Arrow,
-    Label = Label,
+    EmptyLine = empty_line,
 
     StartGraph = StartGraph,
     EndGraph = EndGraph,
 
     Node = Node,
-    Subgraph = Subgraph,
-
-    Link = LinksWriter.Link,
-    DoneLinks = LinksWriter.DoneLinks,
+    Chain = Chain,
   }
 
 -- Export:
 return Methods
 
 --[[
-  2026 # # # #
-  2026-09-05
+  2026 # # # # #
+  2026-09-14
 ]]
