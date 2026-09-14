@@ -204,48 +204,49 @@ local Chain =
   end
 
 local Methods
-
-local create
 do
-  local attach_methods = request('!.table.attach_methods')
-  local indent = '   '
-  local Indent = request('!.concepts.Indent')
-  local IndexSerializer = request('!.concepts.PaddedIndex')
-  create =
-    function(Arg_OutputStream, num_nodes)
-      OutputStream = Arg_OutputStream
+  local create
+  do
+    local attach_methods = request('!.table.attach_methods')
+    local indent = '   '
+    local Indent = request('!.concepts.Indent')
+    local IndexSerializer = request('!.concepts.PaddedIndex')
+    create =
+      function(Arg_OutputStream, num_nodes)
+        OutputStream = Arg_OutputStream
 
-      Indent = Indent.create()
-      Indent:SetIndentChunk(indent)
+        Indent = Indent.create()
+        Indent:SetIndentChunk(indent)
 
-      IndexSerializer = IndexSerializer.create(num_nodes)
+        IndexSerializer = IndexSerializer.create(num_nodes)
 
-      local Core =
-        {
-          [1] = Arg_OutputStream,
-          [2] = 0,
-          [3] = '',
-          [4] = Indent,
-          [5] = IndexSerializer,
-        }
-      attach_methods(Core, Methods)
+        local Core =
+          {
+            [1] = Arg_OutputStream,
+            [2] = 0,
+            [3] = '',
+            [4] = Indent,
+            [5] = IndexSerializer,
+          }
+        attach_methods(Core, Methods)
 
-      return Core
-    end
-end
+        return Core
+      end
+  end
 
-Methods =
-  {
-    create = create,
+  Methods =
+    {
+      create = create,
 
-    EmptyLine = empty_line,
+      EmptyLine = empty_line,
 
-    StartGraph = StartGraph,
-    EndGraph = EndGraph,
+      StartGraph = StartGraph,
+      EndGraph = EndGraph,
 
-    Node = Node,
-    Chain = Chain,
-  }
+      Node = Node,
+      Chain = Chain,
+    }
+  end
 
 -- Export:
 return Methods

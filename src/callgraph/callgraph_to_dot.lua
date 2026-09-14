@@ -25,8 +25,6 @@
   This implementation merges chains into one .dot statement.
 ]]
 
-local Writer = request('callgraph_to_dot.Writer')
-
 local get_chains
 do
   local add_to_list = request('!.concepts.list.add_item')
@@ -80,10 +78,12 @@ do
     end
 end
 
+local Writer = request('callgraph_to_dot.Writer')
+
 -- Export:
 return
   function(InstructionsGraph, OutputStream)
-    Writer = Writer.create(OutputStream, #InstructionsGraph)
+    local Writer = Writer.create(OutputStream, #InstructionsGraph)
 
     Writer:StartGraph()
 
@@ -93,11 +93,8 @@ return
 
     Writer:EmptyLine()
 
-    do
-      local Chains = get_chains(InstructionsGraph)
-      for _, Chain in ipairs(Chains) do
-        Writer:Chain(Chain)
-      end
+    for _, Chain in ipairs(get_chains(InstructionsGraph)) do
+      Writer:Chain(Chain)
     end
 
     Writer:EndGraph()

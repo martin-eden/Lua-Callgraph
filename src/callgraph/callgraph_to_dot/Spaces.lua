@@ -2,23 +2,19 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-08-07
+  Last mod.: 2026-09-14
 ]]
 
--- Imports:
 local AsciiChars = request('!.concepts.Ascii.Chars')
 
-local Spaces =
+-- Export:
+return
   {
     space = AsciiChars.space,
     tab = AsciiChars.tab,
     newline = AsciiChars.newline,
   }
 
--- Export:
-return Spaces
-
 --[[
-  2026-07-27
-  2026-07-29
+  2026 # #
 ]]

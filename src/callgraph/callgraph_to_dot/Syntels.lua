@@ -2,13 +2,13 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-03
+  Last mod.: 2026-09-14
 ]]
 
--- Imports:
 local AsciiChars = request('!.concepts.Ascii.Chars')
 
-local Syntels =
+-- Export:
+return
   {
     kw_digraph = 'digraph',
     kw_label = 'label',
@@ -26,9 +26,6 @@ local Syntels =
     end_attr = AsciiChars.closing_bracket,
   }
 
--- Export:
-return Syntels
-
 --[[
-  2026-07-27
+  2026 #
 ]]
