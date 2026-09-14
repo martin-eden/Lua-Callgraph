@@ -132,6 +132,8 @@ Creates VM instruction call graphs for Lua code
 
 Usage: <lua_file_name> <output_dir>
 
+Careful, we will recreate <output_dir>!
+
 -- Martin, 2026-09
 ]]
 
