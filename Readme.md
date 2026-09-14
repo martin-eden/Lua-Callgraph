@@ -1,42 +1,102 @@
-[![DeepWiki][DeepWiki_Logo]][DeepWiki_Repo] (will answer your questions)
+[![DeepWiki][DeepWiki_Logo]][DeepWiki_Repo] will answer your questions
 
-## What
+<table>
+  <tr>
+    <th colspan=3 align="center">Rimae</th>
+  </tr>
+  <tr>
+    <td>
+      <table>
+        <tr>
+          <th>Created</th>
+          <td>2026-07</td>
+        </tr>
+        <tr>
+          <th>Updated</th>
+          <td>2026-09-14</td>
+        </tr>
+        <tr>
+          <th>Code size</th>
+          <td>&lt; 90 K</td>
+        </tr>
+        <tr>
+          <th>License</th>
+          <td>LGPL3</td>
+        </tr>
+      </table>
+    </td>
+    <td align="center">
+      Generates control flow graphs for any valid Lua
+      (5.3, 5.4, or 5.5) source code.
+    </td>
+    <td>
+      <table>
+        <tr>
+          <th>Input</th>
+          <th>Output</th>
+        </tr>
+        <tr>
+          <td>
+            <code>.lua</code><br>
+            <code>.luac</code>
+          </td>
+          <td>
+            <code>.svg</code><br>
+            <code>.dot</code><br>
+            <code>.tgf</code><br>
+            <code>.is</code>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
-| Created |  Updated   | Code size | License |
-|:-------:|:----------:|:---------:|:-------:|
-| 2026-07 | 2026-09-14 |   < 90 K  |  LGPL3  |
-
-Generates control flow graphs for any valid Lua (5.3 5.4 5.5) source code.
 
 ## Workflow and details
 
-We will place results in given directory.
+```
+$ lua generate_callgraphs_lua.lua
+Creates VM instruction call graphs for Lua code
+
+Usage: <lua_file_name> <output_dir>
+
+Careful, we will recreate <output_dir>!
+
+-- Martin, 2026-09
+```
+
+Okay, we have some Lua source file. ([Sample][sample_lua])
+
+We will place results in given directory. (We treat that directory as
+our own "child", no other data there is tolerated.)
 
 We will use Lua compiler `luac` to get VM (virtual machine) instructions
 from source code:
 
-  * `.is` (Itness, strings tree)
+  * `.is` ([Itness][Itness], strings tree) ([Sample][sample_listing])
 
     VM instructions listing. Human- and machine-friendly format.
 
-We will create callgraphs in following formats:
+We will create callgraphs from that instructions and export them in following formats:
 
-  * `.tgf` (trivial graph format)
+  * `.tgf` ("trivial graph format" for [`yEd`][yEd]) ([Samples][samples_tgf])
 
-    Machine-friendly format. Graphs can be loaded by [`yEd`][yEd]
-    graph editor and manually processed.
+    Machine-friendly format. Graphs can be loaded in `yEd` and and manually processed.
 
-  * `.dot` (graph format of [`Graphviz`][Graphviz] program)
+  * `.dot` ("DAG of tomorrow" for [`Graphviz`][Graphviz] package) [Samples][samples_dot]
 
-    Human-friendly format. Required to layout graphs to `.svg`.
+    Human- and machine-friendly format. `Graphviz` can layout them to `.svg`.
 
-We will use `dot` program from `graphviz` to layout graphs:
+We will use `dot` program from `graphviz` package to layout `.dot` graphs:
 
-  * `.svg` (simple vector graphics)
+  * `.svg` ("simple vector graphics" for many programs) ([Samples][samples_svg])
 
     XML-based format for vector images. Used to display graphs to human.
 
-![Part of generated image][lua_callgraph_img]
+    You can embed it in `markdown`: `<img src="./output/svg/3.svg" height="600">`:
+
+    <img src="./output/svg/3.svg" height="600">
 
 
 ## Shipment
@@ -66,19 +126,10 @@ Repository contains
 
   * Try it
 
-    ```
-    $ lua generate_callgraphs_lua.lua
-    Creates VM instruction call graphs for Lua code
-
-    Usage: <lua_file_name> <output_dir>
-
-    -- Martin, 2026-09
-    ```
-
 
 ## Modification
 
-Modify files in [`src/`][src].
+  * Modify files in [`src/`][src]
 
 
 ## Rebuilding
@@ -92,11 +143,15 @@ Modify files in [`src/`][src].
 
 ## Notes
 
+  * "Rima" is Latin term for Moon channel. Plural is "rimae"
+
+    Name was [suggested][name_suggestion] by `Regan Ryan` in Lua maillist `2026-09-09`.
+
   * There can be orphaned VM instructions in graphs. They are present
     in `luac -l` listing we are using. We're not going to eliminate them,
     our scope is show what is present, not generating nice graphs.
 
-  * "Callgraph" name is a bit misleading
+  * "Callgraph" term is a bit misleading
 
     We are making callgraph for VM instructions. On higher level
     it's called "flowchart".
@@ -107,8 +162,8 @@ Modify files in [`src/`][src].
 
   * Some functionality extensions are not planned
 
-    Someone may think that adding coloring and shaping features
-    in `.dot` files is improvement. We don't agree.
+    Someone may think that adding node coloring and shaping features
+    to `.dot` files is improvement. We don't agree.
 
     If you want nice graph -- load `.tgf` into `yEd`. Apply one of it's
     layouts. Do shaping and coloring there as you please. Export to `.svg`.
@@ -130,7 +185,13 @@ Modify files in [`src/`][src].
 [DeepWiki_Logo]: https://deepwiki.com/badge.svg
 [DeepWiki_Repo]: https://deepwiki.com/martin-eden/Lua-Callgraph
 
-[lua_callgraph_img]: images/Callgraph-Sample.png
+[sample_lua]: samples/test.lua
+[sample_listing]: output/listing.is
+[samples_tgf]: output/tgf/
+[samples_dot]: output/dot/
+[samples_svg]: output/svg
+
+[Itness]: https://github.com/martin-eden/Lua-Itness
 [yEd]: https://www.yworks.com/products/yed
 [Graphviz]: https://graphviz.org/download/
 [src]: src/
@@ -139,5 +200,8 @@ Modify files in [`src/`][src].
 [layout_script]: deploy/layout_callgraphs.sh
 [create_deploy]: builder/create_deploy.lua
 [rebuild]: builder/rebuild.sh
+
+[name_suggestion]: https://groups.google.com/g/lua-l/c/3x3Vu82RThA/m/3xCvwUemEgAJ
+
 [workshop]: https://github.com/martin-eden/workshop
 [contents]: https://github.com/martin-eden/contents
