@@ -27,7 +27,7 @@
     </td>
     <td align="center">
       Generates control flow graphs for any valid Lua
-      (5.3, 5.4, or 5.5) source code.
+      (5.3, 5.4, 5.5) source code.
     </td>
     <td>
       <table>
@@ -72,8 +72,8 @@ Okay, we have some Lua source file. ([Sample][sample_lua])
 We will place results in given directory. (We treat that directory as
 our own "child", no other data there is tolerated.)
 
-We will use Lua compiler `luac` to get VM (virtual machine) instructions
-from source code:
+We will use stock Lua compiler `luac` to get VM (virtual machine)
+instructions from source code:
 
   * `.is` ([Itness][Itness], strings tree) ([Sample][sample_listing])
 
@@ -85,11 +85,11 @@ We will create callgraphs from that instructions and export them in following fo
 
     Machine-friendly format. Graphs can be loaded in `yEd` and and manually processed.
 
-  * `.dot` ("DAG of tomorrow" for [`Graphviz`][Graphviz] package) [Samples][samples_dot]
+  * `.dot` ("DAG of tomorrow" for [`Graphviz`][Graphviz] package) ([Samples][samples_dot])
 
     Human- and machine-friendly format. `Graphviz` can layout them to `.svg`.
 
-  * `.mmd` (mermaid) ([Samples][samples_mmd])
+  * `.mmd` ([`Mermaid`][Mermaid]) ([Samples][samples_mmd])
 
     Hyped layouter for drawing in browser.
 
@@ -107,9 +107,9 @@ We will use `dot` program from `graphviz` package to layout `.dot` graphs:
 
     XML-based format for vector images.
 
-    You can embed it in `markdown`: `<img src="./output/svg/3.svg" height="600">`:
+    You can embed it in `markdown`: `<img src="./output/svg/3.svg" height=600>`:
 
-    <img src="./output/svg/3.svg" height="600">
+    <img src="./output/svg/3.svg" height=600>
 
 
 ## Shipment
@@ -137,7 +137,9 @@ Repository contains
 
   * Add it to your programs (f.e. place it in `~/bin/`)
 
-  * Try it
+  * Try it on bigger code corpus
+
+    For example try it on itself. There are some graphs worth seeing.
 
 
 ## Modification
@@ -166,20 +168,20 @@ Repository contains
 
   * "Callgraph" term is a bit misleading
 
-    We are making callgraph for VM instructions. On higher level
+    We are making static callgraph for VM instructions. On higher level
     it's called "flowchart".
 
   * It works for compiled and stripped Lua bytecode
 
     You don't need original sources.
 
-  * Some functionality extensions are not planned
+  * Some functional extensions are not planned
 
     Someone may think that adding node coloring and shaping features
-    to `.dot` files is improvement. We don't agree.
+    is improvement. We don't agree.
 
     If you want nice graph -- load `.tgf` into `yEd`. Apply one of it's
-    layouts. Do shaping and coloring there as you please. Export to `.svg`.
+    layouts. Do shaping and coloring there as you please.
 
   * Basically each function is "closure" and stored in separate file
 
@@ -208,10 +210,11 @@ Repository contains
 [Itness]: https://github.com/martin-eden/Lua-Itness
 [yEd]: https://www.yworks.com/products/yed
 [Graphviz]: https://graphviz.org/download/
+[Mermaid]: https://mermaid.ai
+
 [src]: src/
 [deploy]: deploy/
 [compiled_tool]: deploy/generate_callgraphs_lua.lua
-[layout_script]: deploy/layout_callgraphs.sh
 [create_deploy]: builder/create_deploy.lua
 [rebuild]: builder/rebuild.sh
 
