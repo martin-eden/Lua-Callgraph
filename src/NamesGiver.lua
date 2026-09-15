@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-08
+  Last mod.: 2026-09-15
 ]]
 
 --[[
@@ -57,6 +57,7 @@ do
   local format_tgf = 'tgf'
   local format_dot = 'dot'
   local format_svg = 'svg'
+  local format_mmd = 'mmd'
   local listing_filename = 'listing.is'
 
   get_tgf_dir =
@@ -72,6 +73,11 @@ do
   get_svg_dir =
     function(Me)
       return get_custom_name(Me, format_svg)
+    end
+
+  get_mmd_dir =
+    function(Me)
+      return get_custom_name(Me, format_mmd)
     end
 
   get_listing_pathname =
@@ -120,6 +126,20 @@ do
           }
         )
     end
+
+  get_mmd_pathname =
+    function(Me, index)
+      return
+        pathname_to_str(
+          {
+            get_mmd_dir(Me),
+            list_to_str(
+              { represent_index(Me, index), format_mmd },
+              name_delimiter
+            ),
+          }
+        )
+    end
 end
 
 local Methods
@@ -147,11 +167,13 @@ do
       GetTgfDir = get_tgf_dir,
       GetDotDir = get_dot_dir,
       GetSvgDir = get_svg_dir,
+      GetMmdDir = get_mmd_dir,
 
       GetListingPathname = get_listing_pathname,
       GetTgfPathname = get_tgf_pathname,
       GetDotPathname = get_dot_pathname,
       GetSvgPathname = get_svg_pathname,
+      GetMmdPathname = get_mmd_pathname,
     }
 end
 
@@ -159,6 +181,6 @@ end
 return Methods
 
 --[[
-  2026 # # # # #
-  2026-09-08
+  2026 # # # # # #
+  2026-09-15
 ]]

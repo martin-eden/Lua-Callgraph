@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-08
+  Last mod.: 2026-09-15
 ]]
 
 require('workshop.base')
@@ -86,11 +86,11 @@ end
 
 local export_to_tgf
 local export_to_dot
+local export_to_mmd
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
   do
     local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
-    -- Export callgraph to .tgf file
     export_to_tgf =
       function(Callgraph, file_name)
         local OutputStream = new(OutputFileStream)
@@ -101,12 +101,21 @@ do
   end
   do
     local callgraph_to_dot = request('callgraph.callgraph_to_dot')
-    -- Export callgraph to .dot file
     export_to_dot =
       function(Callgraph, file_name)
         local OutputStream = new(OutputFileStream)
         OutputStream:Open(file_name)
         callgraph_to_dot(Callgraph, OutputStream)
+        OutputStream:Close()
+      end
+  end
+  do
+    local callgraph_to_mmd = request('callgraph.callgraph_to_mmd')
+    export_to_mmd =
+      function(Callgraph, file_name)
+        local OutputStream = new(OutputFileStream)
+        OutputStream:Open(file_name)
+        callgraph_to_mmd(Callgraph, OutputStream)
         OutputStream:Close()
       end
   end
@@ -176,6 +185,7 @@ do
     recreate_dir(NamesGiver:GetTgfDir())
     recreate_dir(NamesGiver:GetDotDir())
     recreate_dir(NamesGiver:GetSvgDir())
+    recreate_dir(NamesGiver:GetMmdDir())
   end
 
   do
@@ -196,6 +206,7 @@ do
         NamesGiver:GetDotPathname(chunk_index),
         NamesGiver:GetSvgPathname(chunk_index)
       )
+      export_to_mmd(Callgraph, NamesGiver:GetMmdPathname(chunk_index))
     end
   end
 
@@ -203,6 +214,6 @@ do
 end
 
 --[[
-  2026 # # # # # #
-  2026-09-08
+  2026 # # # # # # #
+  2026-09-15
 ]]
