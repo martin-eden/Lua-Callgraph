@@ -13,11 +13,11 @@
         </tr>
         <tr>
           <th>Updated</th>
-          <td>2026-09-14</td>
+          <td>2026-09-15</td>
         </tr>
         <tr>
           <th>Code size</th>
-          <td>&lt; 90 K</td>
+          <td>&lt; 100 K</td>
         </tr>
         <tr>
           <th>License</th>
@@ -42,6 +42,7 @@
           </td>
           <td>
             <code>.svg</code><br>
+            <code>.mmd</code><br>
             <code>.dot</code><br>
             <code>.tgf</code><br>
             <code>.is</code>
@@ -88,11 +89,23 @@ We will create callgraphs from that instructions and export them in following fo
 
     Human- and machine-friendly format. `Graphviz` can layout them to `.svg`.
 
+  * `.mmd` (mermaid) ([Samples][samples_mmd])
+
+    Hyped layouter for drawing in browser.
+
+    JavaScript code from `github.com` is executed in your browser
+    to render them as images.
+
+    Maybe Microsoft will allow you to directly save that images in future.
+
+    You can't embed it in `markdown` in `github.com` as file link.
+    However you can embed their code in `markdown` by ` ```mermaid`.
+
 We will use `dot` program from `graphviz` package to layout `.dot` graphs:
 
   * `.svg` ("simple vector graphics" for many programs) ([Samples][samples_svg])
 
-    XML-based format for vector images. Used to display graphs to human.
+    XML-based format for vector images.
 
     You can embed it in `markdown`: `<img src="./output/svg/3.svg" height="600">`:
 
@@ -189,7 +202,8 @@ Repository contains
 [sample_listing]: output/listing.is
 [samples_tgf]: output/tgf/
 [samples_dot]: output/dot/
-[samples_svg]: output/svg
+[samples_svg]: output/svg/
+[samples_mmd]: output/mmd/
 
 [Itness]: https://github.com/martin-eden/Lua-Itness
 [yEd]: https://www.yworks.com/products/yed
