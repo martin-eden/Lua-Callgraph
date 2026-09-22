@@ -1,8 +1,8 @@
--- Create callgraphs from Lua function bytecode instructions
+-- Create callgraphs for Lua VM instructions
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-15
+  Last mod.: 2026-09-22
 ]]
 
 require('workshop.base')
@@ -135,13 +135,25 @@ do
     end
 end
 
+local words_to_str = request('!.concepts.words.to_string')
+
+local ValidWishes = { 'tgf', 'dot', 'svg', 'mmd' }
+
 local usage_text =
 [[
 Creates VM instruction call graphs for Lua code
 
-Usage: <lua_file_name> <output_dir>
+Usage: <lua_file_name> <output_dir> [<wishes>]
 
 Careful, we will recreate <output_dir>!
+
+<wishes> is a string with space-separated words of what to export
+  You have to quote it for shell.
+  Possible wishes: ]] ..
+  words_to_str(ValidWishes) ..
+[[
+
+  If <wishes> is empty we will process all possible wishes.
 
 -- Martin, 2026-09
 ]]
@@ -150,6 +162,7 @@ local Config =
   {
     sourcecode_pathname = arg[1],
     output_dir_name = arg[2],
+    wishes_str = arg[3],
   }
 
 local console_write =
@@ -164,11 +177,13 @@ local console_print =
   end
 
 local NamesGiver = request('NamesGiver').create()
+local get_wishes = request('get_wishes')
 
 -- Main
 do
   local sourcecode_pathname = Config.sourcecode_pathname
   local output_dir_name = Config.output_dir_name
+  local wishes_str = Config.wishes_str or ''
 
   if not (sourcecode_pathname and output_dir_name) then
     console_write(usage_text)
@@ -179,41 +194,86 @@ do
 
   NamesGiver:SetOutputDir(output_dir_name)
 
+  local Wishes =
+    get_wishes(
+      wishes_str,
+      ValidWishes,
+      {
+        empty_means_all = true,
+        explode_on_unknown = true,
+      }
+    )
+
+  local action_export_tgf
+  local action_export_dot
+  local action_export_svg
+  local action_export_mmd
   do
-    local recreate_dir = request('!.file_system.directory.recreate')
-    recreate_dir(NamesGiver:GetOutputDir())
-    recreate_dir(NamesGiver:GetTgfDir())
-    recreate_dir(NamesGiver:GetDotDir())
-    recreate_dir(NamesGiver:GetSvgDir())
-    recreate_dir(NamesGiver:GetMmdDir())
+    action_export_tgf = Wishes.tgf
+    action_export_dot = Wishes.dot or Wishes.svg
+    action_export_svg = Wishes.svg
+    action_export_mmd = Wishes.mmd
   end
 
   do
-    local Chunks
-    do
-      local listing_pathname = NamesGiver:GetListingPathname()
-      export_listing(sourcecode_pathname, listing_pathname)
-      Chunks = load_listing(listing_pathname)
+    local recreate_dir = request('!.file_system.directory.recreate')
+    recreate_dir(NamesGiver:GetOutputDir())
+    if action_export_tgf then
+      recreate_dir(NamesGiver:GetTgfDir())
     end
+    if action_export_dot then
+      recreate_dir(NamesGiver:GetDotDir())
+    end
+    if action_export_svg then
+      recreate_dir(NamesGiver:GetSvgDir())
+    end
+    if action_export_mmd then
+      recreate_dir(NamesGiver:GetMmdDir())
+    end
+  end
 
-    NamesGiver:SetNumItems(#Chunks)
+  local Chunks
+  do
+    local listing_pathname = NamesGiver:GetListingPathname()
+    export_listing(sourcecode_pathname, listing_pathname)
+    Chunks = load_listing(listing_pathname)
+  end
 
-    for chunk_index, Chunk in ipairs(Chunks) do
-      local Callgraph = get_callgraph(Chunk)
+  NamesGiver:SetNumItems(#Chunks)
+
+  for chunk_index, Chunk in ipairs(Chunks) do
+    local Callgraph = get_callgraph(Chunk)
+    if action_export_tgf then
       export_to_tgf(Callgraph, NamesGiver:GetTgfPathname(chunk_index))
+    end
+    if action_export_dot then
       export_to_dot(Callgraph, NamesGiver:GetDotPathname(chunk_index))
-      dot_to_svg(
-        NamesGiver:GetDotPathname(chunk_index),
-        NamesGiver:GetSvgPathname(chunk_index)
-      )
+      if action_export_svg then
+        dot_to_svg(
+          NamesGiver:GetDotPathname(chunk_index),
+          NamesGiver:GetSvgPathname(chunk_index)
+        )
+      end
+    end
+    if action_export_mmd then
       export_to_mmd(Callgraph, NamesGiver:GetMmdPathname(chunk_index))
     end
+  end
+
+  do
+    local remove_dir = request('!.file_system.directory.remove')
+    if not Wishes.dot then
+      remove_dir(NamesGiver:GetDotDir())
+    end
+
+    local remove_file = request('!.file_system.file.remove')
+    remove_file(NamesGiver:GetListingPathname())
   end
 
   console_print(')')
 end
 
 --[[
-  2026 # # # # # # #
-  2026-09-15
+  2026 # # # # # # # #
+  2026-09-22
 ]]
