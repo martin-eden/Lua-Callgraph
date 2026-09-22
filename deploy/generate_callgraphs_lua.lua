@@ -1,3 +1,35 @@
+package.preload['get_wishes'] =
+  function(...)
+    local get_words = request('!.concepts.words.from_string')
+    local map_values = request('!.table.map_values')
+    local subtract = request('!.table.subtract')
+    local intersect = request('!.table.intersect')
+    local is_empty = request('!.table.is_empty')
+    return
+      function(wishes_str, ValidWishes, Config)
+        local empty_means_all = Config.empty_means_all
+        local explode_on_unknown = Config.explode_on_unknown
+        local Wishmap
+        do
+          Wishmap = map_values(get_words(wishes_str))
+          local Validmap = map_values(ValidWishes)
+          if explode_on_unknown then
+            local Remains = new(Wishmap)
+            subtract(Remains, Validmap)
+            if not is_empty(Remains) then
+              error('Unknown token.')
+            end
+          end
+          intersect(Wishmap, Validmap)
+          if empty_means_all then
+            if is_empty(Wishmap) then
+              Wishmap = Validmap
+            end
+          end
+        end
+        return Wishmap
+      end
+  end
 package.preload['NamesGiver'] =
   function(...)
     local pathname_from_str =
@@ -252,18 +284,32 @@ package.preload['generate_callgraphs_lua'] =
           end
         end
     end
+    local words_to_str = request('!.concepts.words.to_string')
+    local ValidWishes = { 'tgf', 'dot', 'svg', 'mmd' }
     local usage_text =
       [[
 Creates VM instruction call graphs for Lua code
 
-Usage: <lua_file_name> <output_dir>
+Usage: <lua_file_name> <output_dir> [<wishes>]
 
 Careful, we will recreate <output_dir>!
+
+<wishes> is a string with space-separated words of what to export
+  You have to quote it for shell.
+  Possible wishes: ]] ..
+      words_to_str(ValidWishes) ..
+      [[
+
+  If <wishes> is empty we will process all possible wishes.
 
 -- Martin, 2026-09
 ]]
     local Config =
-      { sourcecode_pathname = arg[1], output_dir_name = arg[2] }
+      {
+        sourcecode_pathname = arg[1],
+        output_dir_name = arg[2],
+        wishes_str = arg[3],
+      }
     local console_write =
       function(str)
         io.stdout:write(str)
@@ -274,47 +320,87 @@ Careful, we will recreate <output_dir>!
         console_write(newline)
       end
     local NamesGiver = request('NamesGiver').create()
+    local get_wishes = request('get_wishes')
     do
       local sourcecode_pathname = Config.sourcecode_pathname
       local output_dir_name = Config.output_dir_name
+      local wishes_str = Config.wishes_str or ''
       if not (sourcecode_pathname and output_dir_name) then
         console_write(usage_text)
         return
       end
       console_print('( Generating callgraphs')
       NamesGiver:SetOutputDir(output_dir_name)
+      local Wishes =
+        get_wishes(
+          wishes_str,
+          ValidWishes,
+          { empty_means_all = true, explode_on_unknown = true }
+        )
+      local action_export_tgf
+      local action_export_dot
+      local action_export_svg
+      local action_export_mmd
+      do
+        action_export_tgf = Wishes.tgf
+        action_export_dot = Wishes.dot or Wishes.svg
+        action_export_svg = Wishes.svg
+        action_export_mmd = Wishes.mmd
+      end
       do
         local recreate_dir = request('!.file_system.directory.recreate')
         recreate_dir(NamesGiver:GetOutputDir())
-        recreate_dir(NamesGiver:GetTgfDir())
-        recreate_dir(NamesGiver:GetDotDir())
-        recreate_dir(NamesGiver:GetSvgDir())
-        recreate_dir(NamesGiver:GetMmdDir())
-      end
-      do
-        local Chunks
-        do
-          local listing_pathname = NamesGiver:GetListingPathname()
-          export_listing(sourcecode_pathname, listing_pathname)
-          Chunks = load_listing(listing_pathname)
+        if action_export_tgf then
+          recreate_dir(NamesGiver:GetTgfDir())
         end
-        NamesGiver:SetNumItems(#Chunks)
-        for chunk_index, Chunk in ipairs(Chunks) do
-          local Callgraph = get_callgraph(Chunk)
+        if action_export_dot then
+          recreate_dir(NamesGiver:GetDotDir())
+        end
+        if action_export_svg then
+          recreate_dir(NamesGiver:GetSvgDir())
+        end
+        if action_export_mmd then
+          recreate_dir(NamesGiver:GetMmdDir())
+        end
+      end
+      local Chunks
+      do
+        local listing_pathname = NamesGiver:GetListingPathname()
+        export_listing(sourcecode_pathname, listing_pathname)
+        Chunks = load_listing(listing_pathname)
+      end
+      NamesGiver:SetNumItems(#Chunks)
+      for chunk_index, Chunk in ipairs(Chunks) do
+        local Callgraph = get_callgraph(Chunk)
+        if action_export_tgf then
           export_to_tgf(
             Callgraph, NamesGiver:GetTgfPathname(chunk_index)
           )
+        end
+        if action_export_dot then
           export_to_dot(
             Callgraph, NamesGiver:GetDotPathname(chunk_index)
           )
-          dot_to_svg(
-            NamesGiver:GetDotPathname(chunk_index),
-            NamesGiver:GetSvgPathname(chunk_index)
-          )
+          if action_export_svg then
+            dot_to_svg(
+              NamesGiver:GetDotPathname(chunk_index),
+              NamesGiver:GetSvgPathname(chunk_index)
+            )
+          end
+        end
+        if action_export_mmd then
           export_to_mmd(
             Callgraph, NamesGiver:GetMmdPathname(chunk_index)
           )
         end
+      end
+      do
+        local remove_dir = request('!.file_system.directory.remove')
+        if not Wishes.dot then
+          remove_dir(NamesGiver:GetDotDir())
+        end
+        local remove_file = request('!.file_system.file.remove')
+        remove_file(NamesGiver:GetListingPathname())
       end
       console_print(')')
     end
@@ -770,6 +856,14 @@ package.preload['workshop.table.create_instance'] =
         return Result
       end
   end
+package.preload['workshop.table.is_empty'] =
+  function(...)
+    return
+      function(t)
+        assert_table(t)
+        return is_nil(next(t))
+      end
+  end
 package.preload['workshop.table.get_values'] =
   function(...)
     local add_to_list = request('!.concepts.list.add_item')
@@ -781,6 +875,15 @@ package.preload['workshop.table.get_values'] =
           add_to_list(Values, value)
         end
         return Values
+      end
+  end
+package.preload['workshop.table.subtract'] =
+  function(...)
+    local Rules = { { has_a = true, has_b = true, action = 'remove' } }
+    local apply_table = request('apply_table')
+    return
+      function(A, B)
+        apply_table(A, B, Rules)
       end
   end
 package.preload['workshop.table.apply_table'] =
@@ -850,6 +953,19 @@ package.preload['workshop.table.apply_table'] =
             error('Unsupported rule.')
           end
         end
+        apply_table(A, B, Rules)
+      end
+  end
+package.preload['workshop.table.intersect'] =
+  function(...)
+    local Rules =
+      {
+        { has_a = true, has_b = false, action = 'remove' },
+        { has_a = false, has_b = true, action = 'remove' },
+      }
+    local apply_table = request('apply_table')
+    return
+      function(A, B)
         apply_table(A, B, Rules)
       end
   end
@@ -1284,43 +1400,30 @@ package.preload['workshop.concepts.RangePoint'] =
   end
 package.preload['workshop.concepts.PaddedIndex'] =
   function(...)
-    local is_natural = request('!.number.is_natural')
-    local get_max_index =
-      function(Me)
-        return Me[1]
-      end
-    local get_format =
-      function(Me)
-        return Me[2]
-      end
-    local to_string =
-      function(Me, index)
-        assert(is_natural(index))
-        assert(index <= get_max_index(Me))
-        local str_format = string.format
-        return str_format(get_format(Me), index)
-      end
+    local to_string
+    do
+      local str_format = string.format
+      to_string =
+        function(Me, index)
+          return str_format(Me[1], index)
+        end
+    end
     local Interface
-    Interface =
-      {
-        ToString = to_string,
-        create =
-          function(max_index)
-            assert(is_natural(max_index))
-            local zeroes_padding_format
-            do
-              local get_num_dec_digits =
-                request('!.number.get_num_dec_digits')
-              local int_to_str = tostring
-              local num_digits = get_num_dec_digits(max_index)
-              zeroes_padding_format =
-                '%0' .. int_to_str(num_digits) .. 'd'
-            end
-            local create_instance = request('!.table.create_instance')
-            local Core = { max_index, zeroes_padding_format }
-            return create_instance(Core, Interface)
-          end,
-      }
+    local create
+    do
+      local is_natural = request('!.number.is_natural')
+      local get_num_dec_digits = request('!.number.get_num_dec_digits')
+      local int_to_str = tostring
+      local create_instance = request('!.table.create_instance')
+      create =
+        function(max_index)
+          assert(is_natural(max_index))
+          local zeroes_padding_format =
+            '%0' .. int_to_str(get_num_dec_digits(max_index)) .. 'd'
+          return create_instance({ zeroes_padding_format }, Interface)
+        end
+    end
+    Interface = { create = create, ToString = to_string }
     return Interface
   end
 package.preload['workshop.concepts.lua.NumberTypeNames'] =
@@ -1543,6 +1646,19 @@ package.preload['workshop.concepts.list.add_list'] =
       function(OurList, AnotherList)
         assert(OurList ~= AnotherList)
         tbl_move(AnotherList, 1, #AnotherList, #OurList + 1, OurList)
+      end
+  end
+package.preload['workshop.concepts.words.from_string'] =
+  function(...)
+    local str_gmatch = string.gmatch
+    local add_to_list = request('!.concepts.list.add_item')
+    return
+      function(str)
+        local Words = {}
+        for word in str_gmatch(str, '%S+') do
+          add_to_list(Words, word)
+        end
+        return Words
       end
   end
 package.preload['workshop.concepts.words.to_string'] =
