@@ -8,12 +8,12 @@
     <td>
       <table>
         <tr>
-          <th>Created</th>
-          <td>2026-07</td>
+          <th>Updated</th>
+          <td>2026-09-22</td>
         </tr>
         <tr>
-          <th>Updated</th>
-          <td>2026-09-15</td>
+          <th>Created</th>
+          <td>2026-07</td>
         </tr>
         <tr>
           <th>Code size</th>
@@ -45,7 +45,6 @@
             <code>.mmd</code><br>
             <code>.dot</code><br>
             <code>.tgf</code><br>
-            <code>.is</code>
           </td>
         </tr>
       </table>
@@ -60,9 +59,14 @@
 $ lua generate_callgraphs_lua.lua
 Creates VM instruction call graphs for Lua code
 
-Usage: <lua_file_name> <output_dir>
+Usage: <lua_file_name> <output_dir> [<wishes>]
 
 Careful, we will recreate <output_dir>!
+
+<wishes> is a string with space-separated words of what to export
+  You have to quote it for shell.
+  Possible wishes: tgf dot svg mmd
+  If <wishes> is empty we will process all possible wishes.
 
 -- Martin, 2026-09
 ```
