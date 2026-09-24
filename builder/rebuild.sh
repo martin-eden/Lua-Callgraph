@@ -4,7 +4,7 @@
 
 #
 # Author: Martin Eden
-# Last mod.: 2026-09-08
+# Last mod.: 2026-09-24
 #
 
 #
@@ -30,13 +30,10 @@ cd ../src
 # ( Get dependencies from [workshop]
 rm -r -f workshop/
 
-lua ../builder/create_deploy.lua
-
-bash deploy.sh
-rm deploy.sh
+lua ../builder/deploy.lua
 
 mv deploy/workshop/ .
-rm -r -f deploy/
+rm -r deploy/
 # )
 
 #
