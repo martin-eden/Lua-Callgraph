@@ -2,26 +2,38 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-06-07
+  Last mod.: 2026-10-14
 ]]
 
---[[
-  Contract
-
-  Function never fails.
-]]
-
--- Imports:
-local DataWriter = request('compile.DataWriter.Interface')
-local DelimitersWriter = request('compile.DelimitersWriter.Interface')
 local Syntax = request('common.Syntax')
+local DelimitersWriterClass = request('compile.DelimitersWriter')
+local DataWriterClass = request('compile.DataWriter')
 
-local compile_root =
-  function(Tree, Output)
-    assert_table(Tree)
+return
+  function(Node, Output)
+    local DelimitersWriter =
+      DelimitersWriterClass.create(
+        Syntax.delimiters_space_char,
+        Syntax.delimiters_newline_char,
+        Output
+      )
 
-    local DataWriter = new(DataWriter)
-    local DelimitersWriter = new(DelimitersWriter)
+    local DataWriter =
+      DataWriterClass.create(
+        {
+          [1] = Syntax.delimiters_space_char,
+          [2] = Syntax.delimiters_newline_char,
+          [3] = Syntax.group_open_char,
+          [4] = Syntax.group_close_char,
+          [5] = Syntax.quote_open_char,
+          [6] = Syntax.quote_close_char,
+        },
+        3,
+        4,
+        5,
+        6,
+        Output
+      )
 
     local compile
     compile =
@@ -40,27 +52,13 @@ local compile_root =
         end
       end
 
-    DataWriter.Output = Output
-    DataWriter.Syntax = Syntax
-    DataWriter:Init()
-
-    DelimitersWriter.Output = Output
-    DelimitersWriter.space_char = Syntax.delimiters_space_char
-    DelimitersWriter.newline_char = Syntax.delimiters_newline_char
-    DelimitersWriter:Init()
-
-    for _, Node in ipairs(Tree) do
-      compile(Node)
-    end
+    compile(Node)
 
     DelimitersWriter:HandleEvent('nothing')
   end
 
--- Export:
-return compile_root
-
 --[[
   2024 # # #
-  2026-05 #
-  2026-06-07
+  2026 # #
+  2026-09-23
 ]]

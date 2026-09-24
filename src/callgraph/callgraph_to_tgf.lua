@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-02
+  Last mod.: 2026-10-15
 ]]
 
 --[[
@@ -66,21 +66,21 @@ local get_node_name =
 
 -- Export:
 return
-  function(InstructionsGraph, Arg_OutputStream)
-    IndexSerializer = IndexSerializer.create(#InstructionsGraph)
+  function(Labels, Links, Arg_OutputStream)
+    local num_nodes = #Labels
+    IndexSerializer = IndexSerializer.create(num_nodes)
     OutputStream = Arg_OutputStream
 
-    for instruction_index, Instruction in ipairs(InstructionsGraph) do
-      write_label(get_node_name(instruction_index), Instruction.label)
+    for index, label in ipairs(Labels) do
+      write_label(get_node_name(index), label)
     end
 
     write_empty_line()
     write_sections_delimiter()
     write_empty_line()
 
-    for src_instruction_index, Instruction in ipairs(InstructionsGraph) do
+    for src_instruction_index, NextOnes in ipairs(Links) do
       local src_name = get_node_name(src_instruction_index)
-      local NextOnes = Instruction.NextOnes
       local is_forking_node = (#NextOnes > 1)
 
       if is_forking_node then write_empty_line() end

@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-15
+  Last mod.: 2026-10-15
 ]]
 
 --[[
@@ -12,7 +12,7 @@
     2 [t] -- padded index instance
 ]]
 
-local Syntels = request('Syntels')
+local Syntels = request('Writer.Syntels')
 
 local EmptyLine =
   function(Me)
@@ -113,7 +113,7 @@ do
   local create
   do
     local attach_methods = request('!.table.attach_methods')
-    local TokensWriter = request('TokensOutputStream')
+    local TokensWriter = request('Writer.TokensOutputStream')
     local IndexSerializer = request('!.concepts.PaddedIndex')
     create =
       function(OutputStream, num_nodes)

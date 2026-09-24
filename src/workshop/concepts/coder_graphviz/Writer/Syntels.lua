@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-14
+  Last mod.: 2026-10-15
 ]]
 
 local AsciiChars = request('!.concepts.Ascii.Chars')

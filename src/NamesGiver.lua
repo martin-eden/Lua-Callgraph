@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-15
+  Last mod.: 2026-10-15
 ]]
 
 --[[
@@ -146,13 +146,14 @@ local Methods
 do
   local create
   do
-    local create_instance = request('!.table.create_instance')
+    local attach_methods = request('!.table.attach_methods')
     create =
       function()
         -- Allocate data slots. Data setup is done via methods
         local Core = { [1] = false, [2] = false }
+        attach_methods(Core, Methods)
 
-        return create_instance(Core, Methods)
+        return Methods
       end
   end
 

@@ -2,26 +2,26 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-15
+  Last mod.: 2026-10-15
 ]]
 
 local Writer = request('callgraph_to_mmd.Writer')
-local get_chains = request('get_chains')
+local get_chains = request('!.mechs.graph.get_chains')
 
 -- Export:
 return
-  function(InstructionsGraph, OutputStream)
-    local Writer = Writer.create(OutputStream, #InstructionsGraph)
+  function(Labels, Links, OutputStream)
+    local Writer = Writer.create(OutputStream, #Labels)
 
     Writer:StartGraph()
 
-    for instruction_index, Instruction in ipairs(InstructionsGraph) do
-      Writer:Node(instruction_index, Instruction.label)
+    for index, label in ipairs(Labels) do
+      Writer:Node(index, label)
     end
 
     Writer:EmptyLine()
 
-    for _, Chain in ipairs(get_chains(InstructionsGraph)) do
+    for _, Chain in ipairs(get_chains(Links)) do
       Writer:Chain(Chain)
     end
 

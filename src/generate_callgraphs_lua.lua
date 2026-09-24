@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-22
+  Last mod.: 2026-10-15
 ]]
 
 require('workshop.base')
@@ -21,8 +21,8 @@ do
   local FileStream = request('!.concepts.StreamIo.Output.File')
   export_listing =
     function(sourcecode_pathname, listing_pathname)
-      local ListingStream = new(FileStream)
-      ListingStream:Open(listing_pathname)
+      local ListingStream = FileStream.create(listing_pathname)
+      ListingStream:Open()
       get_bytecode_listing({ sourcecode_pathname }, ListingStream)
       ListingStream:Close()
     end
@@ -35,8 +35,8 @@ do
   load_listing =
     function(listing_pathname)
       local Result
-      local ListingStream = new(FileStream)
-      ListingStream:Open(listing_pathname)
+      local ListingStream = FileStream.create(listing_pathname)
+      ListingStream:Open()
       Result = parse_itness(ListingStream)
       ListingStream:Close()
       return Result
@@ -57,30 +57,26 @@ end
   Sample output (Lua format):
 
     {
-      [1] = { label = 'TEST 9 0', NextOnes = { 2, 3 } },
-      [2] = { label = 'JMP 3', NextOnes = { 6 } },
-      [3] = { label = 'GETUPVAL 10 6', NextOnes = { 4 } },
+      [1] = { [1] = 'TEST 9 0', [2] = 'JMP 3', [3] = 'GETUPVAL 10 6' },
+      [2] = { [1] = { 2, 3 }, [2] = { 6 }, [3] = { 4 } },
     }
 ]]
 local get_callgraph
 do
-  local list_to_str = request('!.concepts.list.to_string')
+  local words_to_str = request('!.concepts.words.to_string')
   local get_next_ones = request('callgraph.get_next_ones')
   local add_to_list = request('!.concepts.list.add_item')
   get_callgraph =
     function(Chunk)
-      local Callgraph = { }
+      local Labels = { }
+      local Links = { }
 
-      for instruction_index, Instruction in ipairs(Chunk) do
-        local CallgraphRec =
-          {
-            label = list_to_str(Instruction, space),
-            NextOnes = get_next_ones(instruction_index, Instruction),
-          }
-        add_to_list(Callgraph, CallgraphRec)
+      for index, Instruction in ipairs(Chunk) do
+        Labels[index] = words_to_str(Instruction)
+        Links[index] = get_next_ones(index, Instruction)
       end
 
-      return Callgraph
+      return { Labels, Links }
     end
 end
 
@@ -93,19 +89,19 @@ do
     local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
     export_to_tgf =
       function(Callgraph, file_name)
-        local OutputStream = new(OutputFileStream)
-        OutputStream:Open(file_name)
-        callgraph_to_tgf(Callgraph, OutputStream)
+        local OutputStream = OutputFileStream.create(file_name)
+        OutputStream:Open()
+        callgraph_to_tgf(Callgraph[1], Callgraph[2], OutputStream)
         OutputStream:Close()
       end
   end
   do
-    local callgraph_to_dot = request('callgraph.callgraph_to_dot')
+    local callgraph_to_dot = request('!.concepts.coder_graphviz.compile')
     export_to_dot =
       function(Callgraph, file_name)
-        local OutputStream = new(OutputFileStream)
-        OutputStream:Open(file_name)
-        callgraph_to_dot(Callgraph, OutputStream)
+        local OutputStream = OutputFileStream.create(file_name)
+        OutputStream:Open()
+        callgraph_to_dot(Callgraph[1], Callgraph[2], OutputStream)
         OutputStream:Close()
       end
   end
@@ -113,9 +109,9 @@ do
     local callgraph_to_mmd = request('callgraph.callgraph_to_mmd')
     export_to_mmd =
       function(Callgraph, file_name)
-        local OutputStream = new(OutputFileStream)
-        OutputStream:Open(file_name)
-        callgraph_to_mmd(Callgraph, OutputStream)
+        local OutputStream = OutputFileStream.create(file_name)
+        OutputStream:Open()
+        callgraph_to_mmd(Callgraph[1], Callgraph[2], OutputStream)
         OutputStream:Close()
       end
   end
