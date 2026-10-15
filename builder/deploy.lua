@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-09-24
+  Last mod.: 2026-10-15
 ]]
 
 --[[
@@ -27,12 +27,12 @@ local Modules = { 'generate_callgraphs_lua' }
 --
 package.path = package.path .. ';../../../?.lua'
 --
-local ModulePaths
+local ModulePaths, Deps
 do
   arg[1] = '../samples/test.lua'
   arg[2] = '../output/'
   local observe_modules = require('workshop.system.observe_modules')
-  ModulePaths = observe_modules(Modules)
+  ModulePaths, Deps = observe_modules(Modules)
 end
 --
 require('workshop.base')
@@ -50,6 +50,21 @@ local deploy = request('!.mechs.deploy')
 
 deploy(FilesList)
 --
+
+--[[ Depencencies observation block for meat
+do
+  local deps_to_dot = request('!.mechs.deps_to_graphviz')
+  local OutputStream
+  do
+    local dot_file_name = 'dependencies.dot'
+    local OutputFile = request('!.concepts.StreamIo.Output.File')
+    OutputStream = OutputFile.create(dot_file_name)
+  end
+  OutputStream:Open()
+  deps_to_dot(Deps, OutputStream)
+  OutputStream:Close()
+end
+--]]
 
 --[[
   202?
