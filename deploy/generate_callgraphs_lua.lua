@@ -239,12 +239,12 @@ package.preload['generate_callgraphs_lua'] =
       local OutputFileStream =
         request('!.concepts.StreamIo.Output.File')
       do
-        local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+        local callgraph_to_tgf = request('!.concepts.coder_tgf.compile')
         export_to_tgf =
           function(Callgraph, file_name)
             local OutputStream = OutputFileStream.create(file_name)
             OutputStream:Open()
-            callgraph_to_tgf(Callgraph[1], Callgraph[2], OutputStream)
+            callgraph_to_tgf(Callgraph, OutputStream)
             OutputStream:Close()
           end
       end
@@ -255,17 +255,17 @@ package.preload['generate_callgraphs_lua'] =
           function(Callgraph, file_name)
             local OutputStream = OutputFileStream.create(file_name)
             OutputStream:Open()
-            callgraph_to_dot(Callgraph[1], Callgraph[2], OutputStream)
+            callgraph_to_dot(Callgraph, OutputStream)
             OutputStream:Close()
           end
       end
       do
-        local callgraph_to_mmd = request('callgraph.callgraph_to_mmd')
+        local callgraph_to_mmd = request('!.concepts.coder_mmd.compile')
         export_to_mmd =
           function(Callgraph, file_name)
             local OutputStream = OutputFileStream.create(file_name)
             OutputStream:Open()
-            callgraph_to_mmd(Callgraph[1], Callgraph[2], OutputStream)
+            callgraph_to_mmd(Callgraph, OutputStream)
             OutputStream:Close()
           end
       end
@@ -720,15 +720,13 @@ package.preload['workshop.mechs.cmdline.get_cmd_dot_to_svg'] =
   end
 package.preload['workshop.mechs.graph.get_chains'] =
   function(...)
+    local get_num_entries = request('!.table.get_num_entries')
+    local ordered_pass = request('!.table.ordered_pass')
     local add_to_list = request('!.concepts.list.add_item')
     return
       function(Links)
-        local num_nodes = #Links
         local Chains = {}
         local VisitedNodes_Map = {}
-        for i = 1, num_nodes do
-          VisitedNodes_Map[i] = false
-        end
         local walk_chain
         walk_chain =
           function(start_node, Chain)
@@ -739,18 +737,21 @@ package.preload['workshop.mechs.graph.get_chains'] =
             end
             VisitedNodes_Map[start_node] = true
             local NextOnes = Links[start_node]
-            local num_next_ones = #NextOnes
-            if (num_next_ones == 0) then
+            if not NextOnes or (get_num_entries(NextOnes) == 0) then
               add_to_list(Chains, Chain)
               return
             end
-            walk_chain(NextOnes[1], Chain)
-            for next_one_index = 2, num_next_ones do
-              local InnerChain = { start_node }
-              walk_chain(NextOnes[next_one_index], InnerChain)
+            local is_first_rec = true
+            for _, next_one_index in ordered_pass(NextOnes) do
+              if is_first_rec then
+                walk_chain(next_one_index, Chain)
+                is_first_rec = false
+              else
+                walk_chain(next_one_index, { start_node })
+              end
             end
           end
-        for start_node = 1, num_nodes do
+        for start_node in ordered_pass(Links) do
           if not VisitedNodes_Map[start_node] then
             walk_chain(start_node, {})
           end
@@ -850,12 +851,39 @@ package.preload['workshop.table.map_values'] =
         return Result
       end
   end
+package.preload['workshop.table.get_num_entries'] =
+  function(...)
+    return
+      function(t)
+        local result
+        if is_table(t) then
+          result = 0
+          for k in pairs(t) do
+            result = result + 1
+          end
+        end
+        return result
+      end
+  end
 package.preload['workshop.table.is_empty'] =
   function(...)
     return
       function(t)
         assert_table(t)
         return is_nil(next(t))
+      end
+  end
+package.preload['workshop.table.get_key_vals'] =
+  function(...)
+    local add_to_list = request('!.concepts.list.add_item')
+    return
+      function(Table)
+        assert_table(Table)
+        local KeyVals = {}
+        for key, value in pairs(Table) do
+          add_to_list(KeyVals, { key = key, value = value })
+        end
+        return KeyVals
       end
   end
 package.preload['workshop.table.subtract'] =
@@ -937,6 +965,29 @@ package.preload['workshop.table.apply_table'] =
         apply_table(A, B, Rules)
       end
   end
+package.preload['workshop.table.ordered_pass'] =
+  function(...)
+    local keys_comparator = request('ordered_pass.compare_keys')
+    local get_key_vals = request('get_key_vals')
+    local tbl_sort = table.sort
+    return
+      function(Table, comparator)
+        assert_table(Table)
+        comparator = comparator or keys_comparator
+        assert_function(comparator)
+        local KeyVals = get_key_vals(Table)
+        tbl_sort(KeyVals, comparator)
+        local i = 0
+        local get_next =
+          function()
+            i = i + 1
+            if KeyVals[i] then
+              return KeyVals[i].key, KeyVals[i].value
+            end
+          end
+        return get_next, Table
+      end
+  end
 package.preload['workshop.table.intersect'] =
   function(...)
     local Rules =
@@ -957,6 +1008,35 @@ package.preload['workshop.table.attach_methods'] =
         assert_table(Object)
         assert_table(Methods)
         setmetatable(Object, { __index = Methods })
+      end
+  end
+package.preload['workshop.table.ordered_pass.compare_values'] =
+  function(...)
+    local TypeRank_Map = { ['number'] = 1, ['string'] = 2, other = 3 }
+    local ComparableTypes_Map = { ['number'] = true, ['string'] = true }
+    return
+      function(a, b)
+        local type_a = type(a)
+        local rank_a = TypeRank_Map[type_a] or TypeRank_Map.other
+        local type_b = type(b)
+        local rank_b = TypeRank_Map[type_b] or TypeRank_Map.other
+        if (rank_a ~= rank_b) then
+          return (rank_a < rank_b)
+        end
+        if
+          ComparableTypes_Map[type_a] and ComparableTypes_Map[type_b]
+        then
+          return (a < b)
+        end
+        return (tostring(a) < tostring(b))
+      end
+  end
+package.preload['workshop.table.ordered_pass.compare_keys'] =
+  function(...)
+    local compare_values = request('compare_values')
+    return
+      function(A, B)
+        return compare_values(A.key, B.key)
       end
   end
 package.preload['workshop.file_system.directory.recreate'] =
@@ -1654,19 +1734,30 @@ package.preload['workshop.concepts.list.add_list'] =
   end
 package.preload['workshop.concepts.coder_graphviz.compile'] =
   function(...)
+    local get_num_entries = request('!.table.get_num_entries')
     local Writer = request('Writer')
+    local ordered_pass = request('!.table.ordered_pass')
     local get_chains = request('!.mechs.graph.get_chains')
     return
-      function(Labels, Links, OutputStream)
-        local num_nodes = #Labels
+      function(Graph, OutputStream)
+        local Labels = Graph[1]
+        local Links = Graph[2]
+        local num_nodes = get_num_entries(Labels)
         local Writer = Writer.create(OutputStream, num_nodes)
         Writer:StartGraph()
-        for index, label in ipairs(Labels) do
+        for index, label in ordered_pass(Labels) do
           Writer:Node(index, label)
         end
-        Writer:EmptyLine()
-        for _, Chain in ipairs(get_chains(Links)) do
-          Writer:Chain(Chain)
+        do
+          local Chains = get_chains(Links)
+          if (#Chains == 0) then
+            goto next
+          end
+          Writer:EmptyLine()
+          for _, Chain in ipairs(Chains) do
+            Writer:Chain(Chain)
+          end
+          ::next::
         end
         Writer:EndGraph()
       end
@@ -2363,147 +2454,129 @@ package.preload[
 ] =
   function(...)
     local get_listing = request('listing_from_bytecode.get_listing')
-    local StringStream = request('!.concepts.StreamIo.Input.String')
-    local LinesStream = request('!.concepts.StreamIo.Input.Lines')
+    local InputStringStream =
+      request('!.concepts.StreamIo.Input.String')
+    local InputLinesStream = request('!.concepts.StreamIo.Input.Lines')
     local parse_listing = request('listing_from_bytecode.parse_listing')
-    local listing_from_bytecode =
+    return
       function(bytecode_str)
-        assert_string(bytecode_str)
         local listing_str = get_listing(bytecode_str)
-        local StringStream = new(StringStream)
-        StringStream:Init(listing_str)
-        local LinesStream = new(LinesStream)
-        LinesStream:Init(StringStream)
-        return parse_listing(LinesStream)
+        local InputLines
+        do
+          local InputString = new(InputStringStream)
+          InputString:Init(listing_str)
+          InputLines = new(InputLinesStream)
+          InputLines:Init(InputString)
+        end
+        return parse_listing(InputLines)
       end
-    return listing_from_bytecode
   end
 package.preload[
   'workshop.concepts.lua_bytecode_decompiler.bytecode_from_function'
 ] =
   function(...)
-    local get_func_code = string.dump
+    local str_dump = string.dump
     local strip = true
-    local bytecode_from_function =
+    return
       function(lua_func)
-        assert_function(lua_func)
-        return get_func_code(lua_func, strip)
+        return str_dump(lua_func, strip)
       end
-    return bytecode_from_function
   end
 package.preload[
   'workshop.concepts.lua_bytecode_decompiler.bytecode_from_source'
 ] =
   function(...)
     local split_shebang = request('!.concepts.shell.split_shebang')
+    local g_load = _G.load
     local bytecode_from_function = request('bytecode_from_function')
-    local compile_source = load
-    local bytecode_from_source =
+    return
       function(source_code_str)
-        assert_string(source_code_str)
         local shebang_str, source_code_str =
           split_shebang(source_code_str)
-        local lua_func = compile_source(source_code_str)
+        local lua_func = g_load(source_code_str)
         if not lua_func then
           return
         end
         return bytecode_from_function(lua_func)
       end
-    return bytecode_from_source
   end
 package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode.parse_listing'
 ] =
   function(...)
-    local space
-    local tab
-    local semicolon
+    local parse_line
     do
-      local AsciiChars = request('!.concepts.Ascii.Chars')
-      space = AsciiChars.space
-      tab = AsciiChars.tab
-      semicolon = AsciiChars.semicolon
-    end
-    local cleanup_spaces
-    do
-      local str_gsub = string.gsub
-      local str_trim = request('!.string.trim')
-      cleanup_spaces =
-        function(str)
-          str = str_gsub(str, tab, space)
-          str = str_gsub(str, space .. space .. '+', space)
-          str = str_trim(str)
-          return str
-        end
-    end
-    local str_split
-    do
-      local base_str_split = request('!.string.split')
-      str_split =
-        function(str)
-          return base_str_split(str, space)
-        end
-    end
-    local parse_line =
-      function(str)
-        return str_split(cleanup_spaces(str))
+      local space
+      local tab
+      local comment_char
+      do
+        local AsciiChars = request('!.concepts.Ascii.Chars')
+        space = AsciiChars.space
+        tab = AsciiChars.tab
+        comment_char = AsciiChars.semicolon
       end
-    local add_to_list = request('!.concepts.list.add_item')
-    local parse_function =
-      function(InputLinesStream)
-        local remove_first_item =
-          function(List)
-            local remove_item = table.remove
-            remove_item(List, 1)
+      local cleanup_spaces
+      do
+        local str_gsub = string.gsub
+        local str_trim = request('!.string.trim')
+        cleanup_spaces =
+          function(str)
+            str = str_gsub(str, tab, space)
+            str = str_gsub(str, space .. space .. '+', space)
+            return str_trim(str)
           end
-        InputLinesStream:Read()
-        InputLinesStream:Read()
-        local is_ok, opcode_line = InputLinesStream:Read()
+      end
+      local str_find = string.find
+      local str_sub = string.sub
+      local str_split = request('!.string.split')
+      local tbl_remove = table.remove
+      parse_line =
+        function(str)
+          local comment_pos = str_find(str, comment_char)
+          if comment_pos then
+            str = str_sub(str, 1, comment_pos - 1)
+          end
+          local Instruction = str_split(cleanup_spaces(str), space)
+          tbl_remove(Instruction, 1)
+          tbl_remove(Instruction, 1)
+          return Instruction
+        end
+    end
+    local add_to_list = request('!.concepts.list.add_item')
+    local parse_closure =
+      function(InputLines)
+        InputLines:Read()
+        InputLines:Read()
+        local is_ok, opcode_line = InputLines:Read()
         if not is_ok then
           return false
         end
         local Instructions = {}
-        do
-          local comment_char = semicolon
-          local str_find = string.find
-          local str_sub = string.sub
-          while true do
-            if not is_ok then
-              break
-            end
-            if (opcode_line == '') then
-              break
-            end
-            local Instruction
-            do
-              local comment_pos = str_find(opcode_line, comment_char)
-              if comment_pos then
-                opcode_line = str_sub(opcode_line, 1, comment_pos - 1)
-              end
-              Instruction = parse_line(opcode_line)
-              remove_first_item(Instruction)
-              remove_first_item(Instruction)
-            end
-            add_to_list(Instructions, Instruction)
-            is_ok, opcode_line = InputLinesStream:Read()
+        while true do
+          if (opcode_line == '') then
+            break
+          end
+          add_to_list(Instructions, parse_line(opcode_line))
+          is_ok, opcode_line = InputLines:Read()
+          if not is_ok then
+            break
           end
         end
         return true, Instructions
       end
-    local parse_listing =
-      function(InputLinesStream)
-        local Functions = {}
-        InputLinesStream:Read()
+    return
+      function(InputLines)
+        local Closures = {}
+        InputLines:Read()
         while true do
-          local is_ok, Function = parse_function(InputLinesStream)
+          local is_ok, Closure = parse_closure(InputLines)
           if not is_ok then
             break
           end
-          add_to_list(Functions, Function)
+          add_to_list(Closures, Closure)
         end
-        return Functions
+        return Closures
       end
-    return parse_listing
   end
 package.preload[
   'workshop.concepts.lua_bytecode_decompiler.listing_from_bytecode.get_listing'
@@ -2516,18 +2589,15 @@ package.preload[
     local remove_file = request('!.file_system.file.remove')
     return
       function(bytecode_str)
-        local output_str
         local bytecode_file_name = os_tmpname()
         file_from_str(bytecode_file_name, bytecode_str)
         local Command = get_cmd_decompile(bytecode_file_name)
         local is_ok, Results = Command:Execute()
-        if not is_ok then
-          output_str = ''
-        else
-          output_str = Results.output
-        end
         remove_file(bytecode_file_name)
-        return output_str
+        if not is_ok then
+          return ''
+        end
+        return Results.output
       end
   end
 package.preload['workshop.concepts.StreamIo.Input.File'] =
@@ -2713,6 +2783,312 @@ package.preload['workshop.concepts.StreamIo.Output.String'] =
     Interface =
       { create = create, Write = write, GetString = get_string }
     return create()
+  end
+package.preload['workshop.concepts.coder_mmd.compile'] =
+  function(...)
+    local Writer = request('Writer')
+    local get_chains = request('!.mechs.graph.get_chains')
+    return
+      function(Graph, OutputStream)
+        local Labels = Graph[1]
+        local Links = Graph[2]
+        local Writer = Writer.create(OutputStream, #Labels)
+        Writer:StartGraph()
+        for index, label in ipairs(Labels) do
+          Writer:Node(index, label)
+        end
+        Writer:EmptyLine()
+        for _, Chain in ipairs(get_chains(Links)) do
+          Writer:Chain(Chain)
+        end
+        Writer:EndGraph()
+      end
+  end
+package.preload['workshop.concepts.coder_mmd.Writer'] =
+  function(...)
+    local Syntels = request('Writer.Syntels')
+    local EmptyLine =
+      function(Me)
+        Me[1]:EmptyLine()
+      end
+    local quote
+    do
+      local quote_str = Syntels.quote
+      quote =
+        function(str)
+          return quote_str .. str .. quote_str
+        end
+    end
+    local StartGraph
+    do
+      local flowchart = Syntels.kw_flowchart
+      local topdown = Syntels.topdown
+      StartGraph =
+        function(Me)
+          local Tokens = Me[1]
+          Tokens:Write(flowchart)
+          Tokens:Write(topdown)
+          Tokens:EndLine()
+        end
+    end
+    local EndGraph =
+      function(Me)
+        Me[1]:EndLine()
+      end
+    local get_node_name
+    do
+      local name_prefix = '_'
+      get_node_name =
+        function(Me, index)
+          return name_prefix .. Me[2]:ToString(index)
+        end
+    end
+    local Node
+    do
+      local start_attr = Syntels.start_attr
+      local end_attr = Syntels.end_attr
+      Node =
+        function(Me, index, label)
+          local Tokens = Me[1]
+          Tokens:Write(get_node_name(Me, index))
+          Tokens:Write(start_attr)
+          Tokens:Write(quote(label))
+          Tokens:Write(end_attr)
+          Tokens:EndLine()
+        end
+    end
+    local Chain
+    do
+      local arrow = Syntels.arrow
+      Chain =
+        function(Me, Chain)
+          local Tokens = Me[1]
+          local num_nodes = #Chain
+          if (num_nodes <= 1) then
+            return
+          end
+          Tokens:Write(get_node_name(Me, Chain[1]))
+          for node_idx = 2, num_nodes do
+            Tokens:Write(arrow)
+            Tokens:Write(get_node_name(Me, Chain[node_idx]))
+          end
+          Tokens:EndLine()
+        end
+    end
+    local Methods
+    do
+      local create
+      do
+        local attach_methods = request('!.table.attach_methods')
+        local TokensWriter = request('Writer.TokensOutputStream')
+        local IndexSerializer = request('!.concepts.PaddedIndex')
+        create =
+          function(OutputStream, num_nodes)
+            local Core =
+              {
+                [1] = TokensWriter.create(OutputStream),
+                [2] = IndexSerializer.create(num_nodes),
+              }
+            attach_methods(Core, Methods)
+            return Core
+          end
+      end
+      Methods =
+        {
+          create = create,
+          EmptyLine = EmptyLine,
+          StartGraph = StartGraph,
+          EndGraph = EndGraph,
+          Node = Node,
+          Chain = Chain,
+        }
+    end
+    return Methods
+  end
+package.preload['workshop.concepts.coder_mmd.Writer.Spaces'] =
+  function(...)
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    return { space = AsciiChars.space, newline = AsciiChars.newline }
+  end
+package.preload['workshop.concepts.coder_mmd.Writer.Syntels'] =
+  function(...)
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    return
+      {
+        kw_flowchart = 'flowchart',
+        topdown = 'TD',
+        arrow = '-->',
+        quote = AsciiChars.double_quote,
+        end_statement = AsciiChars.newline,
+        start_attr = AsciiChars.opening_bracket,
+        end_attr = AsciiChars.closing_bracket,
+      }
+  end
+package.preload['workshop.concepts.coder_mmd.Writer.TokensOutputStream'] =
+  function(...)
+    local Spaces = request('Spaces')
+    local Syntels = request('Syntels')
+    local end_line
+    local empty_line
+    do
+      local line_separator = Spaces.newline
+      end_line =
+        function(Me)
+          if (Me[2] == 0) then
+            return
+          end
+          Me[1]:Write(line_separator)
+          Me[2] = 0
+          Me[3] = ''
+        end
+      empty_line =
+        function(Me)
+          end_line(Me)
+          Me[1]:Write(line_separator)
+        end
+    end
+    local write
+    do
+      local item_separator = Spaces.space
+      local sep_len = #item_separator
+      local is_alnum = request('!.concepts.Ascii.is_alnum')
+      local str_sub = string.sub
+      local str_byte = string.byte
+      local ends_with = request('!.string.ends_with')
+      local wrapping_len = 53
+      local arrow = Syntels.arrow
+      local end_statement = Syntels.end_statement
+      local kw_flowchart = Syntels.kw_flowchart
+      write =
+        function(Me, token)
+          local OutputStream = Me[1]
+          local line_len = Me[2]
+          local prev_token = Me[3]
+          local Indent = Me[4]
+          if (line_len == 0) then
+            OutputStream:Write(Indent:ToString())
+          end
+          if (line_len > wrapping_len) and (token == arrow) then
+            end_line(Me)
+            OutputStream:Write(Indent:ToString())
+            OutputStream:Write(prev_token)
+          end
+          do
+            local write_sep = false
+            if (prev_token ~= '') then
+              local prev_char_code =
+                str_byte(str_sub(prev_token, -1, -1))
+              local next_char_code = str_byte(str_sub(token, 1, 1))
+              write_sep =
+                (is_alnum(prev_char_code) and is_alnum(next_char_code)) or
+                ((prev_token == arrow) or (token == arrow))
+            end
+            if write_sep then
+              OutputStream:Write(item_separator)
+              Me[2] = Me[2] + sep_len
+            end
+          end
+          OutputStream:Write(token)
+          if (token == kw_flowchart) then
+            Indent:Inc()
+          end
+          Me[2] = Me[2] + #token
+          Me[3] = token
+        end
+    end
+    local Interface
+    do
+      local create
+      do
+        local IndentClass = request('!.concepts.Indent')
+        local indent_chunk = '  '
+        local attach_methods = request('!.table.attach_methods')
+        create =
+          function(BaseOutputStream)
+            assert_table(BaseOutputStream)
+            local Indent = IndentClass.create()
+            Indent:SetIndentChunk(indent_chunk)
+            local Core =
+              {
+                [1] = BaseOutputStream,
+                [2] = 0,
+                [3] = '',
+                [4] = Indent,
+              }
+            attach_methods(Core, Interface)
+            return Core
+          end
+      end
+      Interface =
+        {
+          create = create,
+          EndLine = end_line,
+          EmptyLine = empty_line,
+          Write = write,
+        }
+    end
+    return Interface
+  end
+package.preload['workshop.concepts.coder_tgf.compile'] =
+  function(...)
+    local AsciiChars = request('!.concepts.Ascii.Chars')
+    local IndexSerializer = request('!.concepts.PaddedIndex')
+    local OutputStream
+    local write_rec
+    do
+      local field_separator = AsciiChars.space
+      local record_separator = AsciiChars.newline
+      local list_to_str = request('!.concepts.list.to_string')
+      write_rec =
+        function(Rec)
+          OutputStream:Write(
+            list_to_str(Rec, field_separator) .. record_separator
+          )
+        end
+    end
+    local write_label =
+      function(name, label)
+        write_rec({ name, label })
+      end
+    local write_sections_delimiter
+    do
+      local parts_delim = AsciiChars.number_sign
+      write_sections_delimiter =
+        function()
+          write_rec({ parts_delim })
+        end
+    end
+    local write_link =
+      function(src_name, dest_name)
+        write_rec({ src_name, dest_name })
+      end
+    local get_node_name =
+      function(index)
+        return IndexSerializer:ToString(index)
+      end
+    return
+      function(Graph, Arg_OutputStream)
+        local Labels = Graph[1]
+        local Links = Graph[2]
+        local num_nodes = #Labels
+        IndexSerializer = IndexSerializer.create(num_nodes)
+        OutputStream = Arg_OutputStream
+        for index, label in ipairs(Labels) do
+          write_label(get_node_name(index), label)
+        end
+        write_sections_delimiter()
+        for src_instruction_index = 1, #Labels do
+          local NextOnes = Links[src_instruction_index]
+          if not NextOnes then
+            goto next
+          end
+          local src_name = get_node_name(src_instruction_index)
+          for _, dest_instruction_index in ipairs(NextOnes) do
+            write_link(src_name, get_node_name(dest_instruction_index))
+          end
+          ::next::
+        end
+      end
   end
 package.preload['workshop.concepts.path_name.pathname_to_str'] =
   function(...)
@@ -2906,91 +3282,6 @@ package.preload['callgraph.get_next_ones'] =
         return NextOnes
       end
   end
-package.preload['callgraph.callgraph_to_tgf'] =
-  function(...)
-    local AsciiChars = request('!.concepts.Ascii.Chars')
-    local IndexSerializer = request('!.concepts.PaddedIndex')
-    local OutputStream
-    local write_rec
-    do
-      local field_separator = AsciiChars.space
-      local record_separator = AsciiChars.newline
-      local list_to_str = request('!.concepts.list.to_string')
-      write_rec =
-        function(Rec)
-          OutputStream:Write(
-            list_to_str(Rec, field_separator) .. record_separator
-          )
-        end
-    end
-    local write_empty_line =
-      function()
-        write_rec({})
-      end
-    local write_label =
-      function(name, label)
-        write_rec({ name, label })
-      end
-    local write_sections_delimiter
-    do
-      local parts_delim = AsciiChars.number_sign
-      write_sections_delimiter =
-        function()
-          write_rec({ parts_delim })
-        end
-    end
-    local write_link =
-      function(src_name, dest_name)
-        write_rec({ src_name, dest_name })
-      end
-    local get_node_name =
-      function(index)
-        return IndexSerializer:ToString(index)
-      end
-    return
-      function(Labels, Links, Arg_OutputStream)
-        local num_nodes = #Labels
-        IndexSerializer = IndexSerializer.create(num_nodes)
-        OutputStream = Arg_OutputStream
-        for index, label in ipairs(Labels) do
-          write_label(get_node_name(index), label)
-        end
-        write_empty_line()
-        write_sections_delimiter()
-        write_empty_line()
-        for src_instruction_index, NextOnes in ipairs(Links) do
-          local src_name = get_node_name(src_instruction_index)
-          local is_forking_node = (#NextOnes > 1)
-          if is_forking_node then
-            write_empty_line()
-          end
-          for _, dest_instruction_index in ipairs(NextOnes) do
-            write_link(src_name, get_node_name(dest_instruction_index))
-          end
-          if is_forking_node then
-            write_empty_line()
-          end
-        end
-      end
-  end
-package.preload['callgraph.callgraph_to_mmd'] =
-  function(...)
-    local Writer = request('callgraph_to_mmd.Writer')
-    local get_chains = request('!.mechs.graph.get_chains')
-    return
-      function(Labels, Links, OutputStream)
-        local Writer = Writer.create(OutputStream, #Labels)
-        Writer:StartGraph()
-        for index, label in ipairs(Labels) do
-          Writer:Node(index, label)
-        end
-        Writer:EmptyLine()
-        for _, Chain in ipairs(get_chains(Links)) do
-          Writer:Chain(Chain)
-        end
-        Writer:EndGraph()
-      end
-  end
 package.preload['callgraph.vm_2020.FlowOpcodes'] =
   function(...)
     return
@@ -3089,231 +3380,6 @@ package.preload['callgraph.vm_2020.get_next_offs'] =
         end
         return NextOffs
       end
-  end
-package.preload['callgraph.callgraph_to_mmd.Spaces'] =
-  function(...)
-    local AsciiChars = request('!.concepts.Ascii.Chars')
-    return { space = AsciiChars.space, newline = AsciiChars.newline }
-  end
-package.preload['callgraph.callgraph_to_mmd.Syntels'] =
-  function(...)
-    local AsciiChars = request('!.concepts.Ascii.Chars')
-    return
-      {
-        kw_flowchart = 'flowchart',
-        topdown = 'TD',
-        arrow = '-->',
-        quote = AsciiChars.double_quote,
-        end_statement = AsciiChars.newline,
-        start_attr = AsciiChars.opening_bracket,
-        end_attr = AsciiChars.closing_bracket,
-      }
-  end
-package.preload['callgraph.callgraph_to_mmd.TokensOutputStream'] =
-  function(...)
-    local Spaces = request('Spaces')
-    local Syntels = request('Syntels')
-    local end_line
-    local empty_line
-    do
-      local line_separator = Spaces.newline
-      end_line =
-        function(Me)
-          if (Me[2] == 0) then
-            return
-          end
-          Me[1]:Write(line_separator)
-          Me[2] = 0
-          Me[3] = ''
-        end
-      empty_line =
-        function(Me)
-          end_line(Me)
-          Me[1]:Write(line_separator)
-        end
-    end
-    local write
-    do
-      local item_separator = Spaces.space
-      local sep_len = #item_separator
-      local is_alnum = request('!.concepts.Ascii.is_alnum')
-      local str_sub = string.sub
-      local str_byte = string.byte
-      local ends_with = request('!.string.ends_with')
-      local wrapping_len = 53
-      local arrow = Syntels.arrow
-      local end_statement = Syntels.end_statement
-      local kw_flowchart = Syntels.kw_flowchart
-      write =
-        function(Me, token)
-          local OutputStream = Me[1]
-          local line_len = Me[2]
-          local prev_token = Me[3]
-          local Indent = Me[4]
-          if (line_len == 0) then
-            OutputStream:Write(Indent:ToString())
-          end
-          if (line_len > wrapping_len) and (token == arrow) then
-            end_line(Me)
-            OutputStream:Write(Indent:ToString())
-            OutputStream:Write(prev_token)
-          end
-          do
-            local write_sep = false
-            if (prev_token ~= '') then
-              local prev_char_code =
-                str_byte(str_sub(prev_token, -1, -1))
-              local next_char_code = str_byte(str_sub(token, 1, 1))
-              write_sep =
-                (is_alnum(prev_char_code) and is_alnum(next_char_code)) or
-                ((prev_token == arrow) or (token == arrow))
-            end
-            if write_sep then
-              OutputStream:Write(item_separator)
-              Me[2] = Me[2] + sep_len
-            end
-          end
-          OutputStream:Write(token)
-          if (token == kw_flowchart) then
-            Indent:Inc()
-          end
-          Me[2] = Me[2] + #token
-          Me[3] = token
-        end
-    end
-    local Interface
-    do
-      local create
-      do
-        local IndentClass = request('!.concepts.Indent')
-        local indent_chunk = '  '
-        local attach_methods = request('!.table.attach_methods')
-        create =
-          function(BaseOutputStream)
-            assert_table(BaseOutputStream)
-            local Indent = IndentClass.create()
-            Indent:SetIndentChunk(indent_chunk)
-            local Core =
-              {
-                [1] = BaseOutputStream,
-                [2] = 0,
-                [3] = '',
-                [4] = Indent,
-              }
-            attach_methods(Core, Interface)
-            return Core
-          end
-      end
-      Interface =
-        {
-          create = create,
-          EndLine = end_line,
-          EmptyLine = empty_line,
-          Write = write,
-        }
-    end
-    return Interface
-  end
-package.preload['callgraph.callgraph_to_mmd.Writer'] =
-  function(...)
-    local Syntels = request('Syntels')
-    local EmptyLine =
-      function(Me)
-        Me[1]:EmptyLine()
-      end
-    local quote
-    do
-      local quote_str = Syntels.quote
-      quote =
-        function(str)
-          return quote_str .. str .. quote_str
-        end
-    end
-    local StartGraph
-    do
-      local flowchart = Syntels.kw_flowchart
-      local topdown = Syntels.topdown
-      StartGraph =
-        function(Me)
-          local Tokens = Me[1]
-          Tokens:Write(flowchart)
-          Tokens:Write(topdown)
-          Tokens:EndLine()
-        end
-    end
-    local EndGraph =
-      function(Me)
-        Me[1]:EndLine()
-      end
-    local get_node_name
-    do
-      local name_prefix = '_'
-      get_node_name =
-        function(Me, index)
-          return name_prefix .. Me[2]:ToString(index)
-        end
-    end
-    local Node
-    do
-      local start_attr = Syntels.start_attr
-      local end_attr = Syntels.end_attr
-      Node =
-        function(Me, index, label)
-          local Tokens = Me[1]
-          Tokens:Write(get_node_name(Me, index))
-          Tokens:Write(start_attr)
-          Tokens:Write(quote(label))
-          Tokens:Write(end_attr)
-          Tokens:EndLine()
-        end
-    end
-    local Chain
-    do
-      local arrow = Syntels.arrow
-      Chain =
-        function(Me, Chain)
-          local Tokens = Me[1]
-          local num_nodes = #Chain
-          if (num_nodes <= 1) then
-            return
-          end
-          Tokens:Write(get_node_name(Me, Chain[1]))
-          for node_idx = 2, num_nodes do
-            Tokens:Write(arrow)
-            Tokens:Write(get_node_name(Me, Chain[node_idx]))
-          end
-          Tokens:EndLine()
-        end
-    end
-    local Methods
-    do
-      local create
-      do
-        local attach_methods = request('!.table.attach_methods')
-        local TokensWriter = request('TokensOutputStream')
-        local IndexSerializer = request('!.concepts.PaddedIndex')
-        create =
-          function(OutputStream, num_nodes)
-            local Core =
-              {
-                [1] = TokensWriter.create(OutputStream),
-                [2] = IndexSerializer.create(num_nodes),
-              }
-            attach_methods(Core, Methods)
-            return Core
-          end
-      end
-      Methods =
-        {
-          create = create,
-          EmptyLine = EmptyLine,
-          StartGraph = StartGraph,
-          EndGraph = EndGraph,
-          Node = Node,
-          Chain = Chain,
-        }
-    end
-    return Methods
   end
 package.preload['callgraph.vm_2015.FlowOpcodes'] =
   function(...)
