@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-10-15
+  Last mod.: 2026-10-19
 ]]
 
 --[[
@@ -51,20 +51,32 @@ local deploy = request('!.mechs.deploy')
 deploy(FilesList)
 --
 
---[[ Depencencies observation block for meat
+--[=[ Depencencies observation block for meat
 do
-  local deps_to_dot = request('!.mechs.deps_to_graphviz')
+  local Graph
+  do
+    local deps_to_graph = request('!.mechs.deps_to_graph')
+    Graph = deps_to_graph(Deps, OutputStream)
+  end
+  local output_file_name = '../deps/dependencies.tgf'
   local OutputStream
   do
-    local dot_file_name = 'dependencies.dot'
     local OutputFile = request('!.concepts.StreamIo.Output.File')
-    OutputStream = OutputFile.create(dot_file_name)
+    OutputStream = OutputFile.create(output_file_name)
   end
+  local write_graph = request('!.concepts.coder_tgf.compile')
   OutputStream:Open()
-  deps_to_dot(Deps, OutputStream)
+  write_graph(Graph, OutputStream)
   OutputStream:Close()
+  --[[
+  do
+    local svg_file_name = '../deps/dependencies.svg'
+    local get_cmd_dot_to_svg = request('!.mechs.cmdline.get_cmd_dot_to_svg')
+    get_cmd_dot_to_svg(dot_file_name, svg_file_name):Execute()
+  end
+  --]]
 end
---]]
+--]=]
 
 --[[
   202?
