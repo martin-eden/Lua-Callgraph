@@ -1,11 +1,11 @@
--- Serialize processed instructions to graph in .mmd (mermaid) format
+-- Serialize graph to .mmd (mermaid) format
 
 --[[
   Author: Martin Eden
   Last mod.: 2026-10-19
 ]]
 
-local Writer = request('callgraph_to_mmd.Writer')
+local Writer = request('Writer')
 local get_chains = request('!.mechs.graph.get_chains')
 
 -- Export:

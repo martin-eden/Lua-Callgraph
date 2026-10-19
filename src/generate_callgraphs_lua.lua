@@ -86,7 +86,7 @@ local export_to_mmd
 do
   local OutputFileStream = request('!.concepts.StreamIo.Output.File')
   do
-    local callgraph_to_tgf = request('callgraph.callgraph_to_tgf')
+    local callgraph_to_tgf = request('!.concepts.coder_tgf.compile')
     export_to_tgf =
       function(Callgraph, file_name)
         local OutputStream = OutputFileStream.create(file_name)
@@ -106,7 +106,7 @@ do
       end
   end
   do
-    local callgraph_to_mmd = request('callgraph.callgraph_to_mmd')
+    local callgraph_to_mmd = request('!.concepts.coder_mmd.compile')
     export_to_mmd =
       function(Callgraph, file_name)
         local OutputStream = OutputFileStream.create(file_name)
