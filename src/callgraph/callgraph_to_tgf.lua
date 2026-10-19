@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-10-15
+  Last mod.: 2026-10-19
 ]]
 
 --[[
@@ -66,7 +66,10 @@ local get_node_name =
 
 -- Export:
 return
-  function(Labels, Links, Arg_OutputStream)
+  function(Graph, Arg_OutputStream)
+    local Labels = Graph[1]
+    local Links = Graph[2]
+
     local num_nodes = #Labels
     IndexSerializer = IndexSerializer.create(num_nodes)
     OutputStream = Arg_OutputStream
@@ -95,4 +98,5 @@ return
 
 --[[
   2026 # # # #
+  2026-10-19
 ]]

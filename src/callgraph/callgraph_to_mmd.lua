@@ -2,7 +2,7 @@
 
 --[[
   Author: Martin Eden
-  Last mod.: 2026-10-15
+  Last mod.: 2026-10-19
 ]]
 
 local Writer = request('callgraph_to_mmd.Writer')
@@ -10,7 +10,10 @@ local get_chains = request('!.mechs.graph.get_chains')
 
 -- Export:
 return
-  function(Labels, Links, OutputStream)
+  function(Graph, OutputStream)
+    local Labels = Graph[1]
+    local Links = Graph[2]
+
     local Writer = Writer.create(OutputStream, #Labels)
 
     Writer:StartGraph()
@@ -30,4 +33,5 @@ return
 
 --[[
   2026-09-15
+  2026-10-19
 ]]

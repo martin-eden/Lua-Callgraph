@@ -91,7 +91,7 @@ do
       function(Callgraph, file_name)
         local OutputStream = OutputFileStream.create(file_name)
         OutputStream:Open()
-        callgraph_to_tgf(Callgraph[1], Callgraph[2], OutputStream)
+        callgraph_to_tgf(Callgraph, OutputStream)
         OutputStream:Close()
       end
   end
@@ -101,7 +101,7 @@ do
       function(Callgraph, file_name)
         local OutputStream = OutputFileStream.create(file_name)
         OutputStream:Open()
-        callgraph_to_dot(Callgraph[1], Callgraph[2], OutputStream)
+        callgraph_to_dot(Callgraph, OutputStream)
         OutputStream:Close()
       end
   end
@@ -111,7 +111,7 @@ do
       function(Callgraph, file_name)
         local OutputStream = OutputFileStream.create(file_name)
         OutputStream:Open()
-        callgraph_to_mmd(Callgraph[1], Callgraph[2], OutputStream)
+        callgraph_to_mmd(Callgraph, OutputStream)
         OutputStream:Close()
       end
   end
